@@ -26,6 +26,7 @@ func main() {
 			api.POST("/auth/refresh", func(c *gin.Context) {
 					auth.RefreshTokenHandler(c, cfg)
 			})
+			api.POST("/auth/logout", auth.LogoutHandler)
 	}
 
 	r.Run(":" + cfg.Port)

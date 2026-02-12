@@ -31,7 +31,9 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     throw new Error(`API Error ${response.status}: ${await response.text()}`)
   }
 
-  return response.json() as Promise<T>
+  const text = await response.text()
+
+  return text ? JSON.parse(text) : ({} as T)
 }
 
 export function registerIpcHandlers(): void {
@@ -84,6 +86,14 @@ export function registerIpcHandlers(): void {
       authWindow.on('closed', () => {
         reject(new Error('User cancelled login'))
       })
+    })
+  })
+
+  // AUTH: LOGOUT
+  ipcMain.handle('auth:logout', async (_event, refreshToken: string) => {
+    return apiRequest('/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: refreshToken })
     })
   })
 }

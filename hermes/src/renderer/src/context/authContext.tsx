@@ -62,12 +62,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   // Logout Function
-  const logout = () => {
-    setUser(null)
-    setAccessToken(null)
-    localStorage.removeItem('user')
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
+  const logout = async () => {
+    try {
+      const refreshToken = localStorage.getItem('refresh_token')
+      if (refreshToken) {
+        await window.electron.ipcRenderer.invoke('auth:logout', refreshToken)
+      }
+    } catch (err) {
+      console.error('Logout failed on server', err)
+    } finally {
+      setUser(null)
+      setAccessToken(null)
+      localStorage.removeItem('user')
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('refresh_token')
+    }
   }
 
   return (

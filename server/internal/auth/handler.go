@@ -52,3 +52,22 @@ func RefreshTokenHandler(c *gin.Context, cfg *config.Config) {
 		"refresh_token": newRefreshToken,
 	})
 }
+
+func LogoutHandler(c *gin.Context) {
+    var req RefreshRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Refresh token required"})
+        return
+    }
+
+    result := database.DB.Model(&models.User{}).
+        Where("refresh_token = ?", req.RefreshToken).
+        Update("refresh_token", "")
+
+    if result.Error != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+        return
+    }
+
+    c.Status(http.StatusOK)
+}
