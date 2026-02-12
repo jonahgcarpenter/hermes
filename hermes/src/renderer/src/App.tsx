@@ -1,5 +1,15 @@
-function App(): React.JSX.Element {
-  return <h1 className="font-bold text-red-500">Hello World</h1>
-}
+import { HashRouter, Routes, Route } from 'react-router-dom'
 
-export default App
+import Landing from './pages/general/landing'
+import Login from './pages/auth/login'
+
+export default function App(): React.JSX.Element {
+  return (
+    <HashRouter>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+      </Routes>
+    </HashRouter>
+  )
+}
