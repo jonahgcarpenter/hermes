@@ -55,14 +55,14 @@ func CompleteAuth(c *gin.Context, cfg *config.Config) {
 		return
 	}
 
-	token, err := CreateToken(fmt.Sprint(dbUser.ID), cfg)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
-		return
-	}
-	
+	accessToken, _ := GenerateAccessToken(fmt.Sprint(dbUser.ID), cfg)
+	refreshToken, _ := GenerateRefreshToken(fmt.Sprint(dbUser.ID), cfg)
+
+	database.DB.Model(&dbUser).Update("refresh_token", refreshToken)
+
 	c.JSON(http.StatusOK, gin.H{
-		"token": token,
-		"user":  dbUser,
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
+			"user":          dbUser,
 	})
 }

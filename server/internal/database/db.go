@@ -3,10 +3,11 @@ package database
 import (
 	"log"
 
-	"github.com/jonahgcarpenter/hermes/server/internal/config"
-	"github.com/jonahgcarpenter/hermes/server/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+
+	"github.com/jonahgcarpenter/hermes/server/internal/config"
+	"github.com/jonahgcarpenter/hermes/server/internal/models"
 )
 
 var DB *gorm.DB
