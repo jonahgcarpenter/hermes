@@ -9,7 +9,6 @@ export default function Login(): React.JSX.Element {
   const handleGoogleLogin = async () => {
     try {
       await login('google')
-      // Redirect to home/dashboard after successful login
       navigate('/')
     } catch (error) {
       alert('Login failed. Please try again.')

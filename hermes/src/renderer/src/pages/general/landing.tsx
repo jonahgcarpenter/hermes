@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../../context/authContext' // Adjust path if needed
+import { useAuth } from '../../context/authContext'
 
 export default function Landing(): React.JSX.Element {
   const { user, logout } = useAuth()
