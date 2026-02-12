@@ -41,16 +41,17 @@ func CompleteAuth(c *gin.Context, cfg *config.Config) {
 		return
 	}
 
-	dbUser := models.User{
-		GoogleID:  user.UserID,
-		Email:     user.Email,
-		Name:      user.Name,
-		AvatarURL: user.AvatarURL,
-	}
+	var dbUser models.User
 
-	result := database.DB.Where(models.User{GoogleID: user.UserID}).FirstOrCreate(&dbUser)
-	
-	if result.Error != nil {
+	err = database.DB.Where(models.User{GoogleID: user.UserID}).
+		Assign(models.User{
+			Name:      user.Name,
+			AvatarURL: user.AvatarURL,
+			Email:     user.Email,
+		}).
+		FirstOrCreate(&dbUser).Error
+
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
