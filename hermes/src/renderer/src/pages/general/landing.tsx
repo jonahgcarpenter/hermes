@@ -6,7 +6,7 @@ export default function Landing(): React.JSX.Element {
   const { user, logout } = useAuth()
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-10 text-center bg-gray-50">
+    <div className="flex min-h-screen flex-col items-center justify-center p-10 text-center">
       <h1 className="mb-8 text-4xl font-bold text-blue-600">Welcome to Landing</h1>
 
       {user ? (

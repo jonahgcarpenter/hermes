@@ -13,7 +13,7 @@ export default function Header(): React.JSX.Element {
   const handleClose = (): void => window.api.close()
 
   return (
-    <header className="relative flex h-12 w-full items-center justify-between bg-zinc-900 px-4 text-zinc-100 shadow-md">
+    <header className="relative flex h-12 w-full items-center justify-between bg-zinc-950 px-4 text-zinc-100 shadow-md">
       {/* --- Left: Navigation --- */}
       <div className="flex items-center gap-1" style={{ WebkitAppRegion: 'no-drag' }}>
         <button
