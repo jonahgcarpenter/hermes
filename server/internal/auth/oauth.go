@@ -25,7 +25,7 @@ func BeginAuth(c *gin.Context) {
 	gothic.BeginAuthHandler(c.Writer, c.Request)
 }
 
-func CompleteAuth(c *gin.Context) {
+func CompleteAuth(c *gin.Context, cfg *config.Config) {
 	provider := c.Param("provider")
 	q := c.Request.URL.Query()
 	q.Add("provider", provider)
@@ -39,14 +39,19 @@ func CompleteAuth(c *gin.Context) {
 
 	// TODO:
 	// - Check if user exists in DB
-	// - Create a JWT
-	// - Return the JWT to client
+
+	token, err := CreateToken(user.UserID, cfg)
+	if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+			return
+	}
 	
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Authenticated successfully",
-		"user_id": user.UserID,
-		"email":   user.Email,
-		"name":    user.Name,
-		"avatar":  user.AvatarURL,
+			"token":  token,
+			"user": gin.H{
+					"email":  user.Email,
+					"name":   user.Name,
+					"avatar": user.AvatarURL,
+			},
 	})
 }

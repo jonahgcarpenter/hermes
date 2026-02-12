@@ -16,7 +16,9 @@ func main() {
 	api := r.Group("/api")
 	{
 			api.GET("/auth/:provider", auth.BeginAuth)
-			api.GET("/auth/:provider/callback", auth.CompleteAuth)
+			api.GET("/auth/:provider/callback", func(c *gin.Context) {
+					auth.CompleteAuth(c, cfg)
+			})
 	}
 
 	r.Run(":" + cfg.Port)
