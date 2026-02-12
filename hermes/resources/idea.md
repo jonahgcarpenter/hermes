@@ -1,1 +1,0 @@
-Vibrant 8-bit pixel art character of a young messenger running atop a fluffy cloud. The character should be wearing a pink and purple outfit with a matching cap featuring small yellow wings. They should have a brown messenger bag slung over their shoulder and be holding up a scroll or note in one hand. The style should be retro and clean, set against a clear background.
