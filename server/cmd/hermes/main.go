@@ -4,10 +4,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jonahgcarpenter/hermes/server/internal/auth"
 	"github.com/jonahgcarpenter/hermes/server/internal/config"
+	"github.com/jonahgcarpenter/hermes/server/internal/database"
 )
 
 func main() {
 	cfg := config.Load()
+
+	database.Connect(cfg)
 
 	auth.Setup(cfg)
 

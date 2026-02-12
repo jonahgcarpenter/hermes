@@ -1,13 +1,17 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
 	"github.com/markbates/goth/providers/google"
+
 	"github.com/jonahgcarpenter/hermes/server/internal/config"
+	"github.com/jonahgcarpenter/hermes/server/internal/database"
+	"github.com/jonahgcarpenter/hermes/server/internal/models"
 )
 
 func Setup(cfg *config.Config) {
@@ -37,21 +41,28 @@ func CompleteAuth(c *gin.Context, cfg *config.Config) {
 		return
 	}
 
-	// TODO:
-	// - Check if user exists in DB
+	dbUser := models.User{
+		GoogleID:  user.UserID,
+		Email:     user.Email,
+		Name:      user.Name,
+		AvatarURL: user.AvatarURL,
+	}
 
-	token, err := CreateToken(user.UserID, cfg)
+	result := database.DB.Where(models.User{GoogleID: user.UserID}).FirstOrCreate(&dbUser)
+	
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	token, err := CreateToken(fmt.Sprint(dbUser.ID), cfg)
 	if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
-			return
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
 	}
 	
 	c.JSON(http.StatusOK, gin.H{
-			"token":  token,
-			"user": gin.H{
-					"email":  user.Email,
-					"name":   user.Name,
-					"avatar": user.AvatarURL,
-			},
+		"token": token,
+		"user":  dbUser,
 	})
 }
