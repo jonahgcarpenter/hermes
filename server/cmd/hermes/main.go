@@ -8,6 +8,7 @@ import (
 	"github.com/jonahgcarpenter/hermes/server/internal/config"
 	"github.com/jonahgcarpenter/hermes/server/internal/database"
 	"github.com/jonahgcarpenter/hermes/server/internal/controllers"
+	"github.com/jonahgcarpenter/hermes/server/internal/ws"
 )
 
 func main() {
@@ -16,6 +17,11 @@ func main() {
 	database.Connect(cfg)
 
 	auth.Setup(cfg)
+
+	hub := ws.NewHub()
+	go hub.Run()
+
+	chatController := controllers.NewChatController(hub)
 
 	r := gin.Default()
 
@@ -34,6 +40,10 @@ func main() {
 					auth.RefreshTokenHandler(c, cfg)
 			})
 			api.POST("/auth/logout", auth.LogoutHandler)
+
+			api.GET("/ws", chatController.HandleWS)
+
+			api.GET("/channels/:channelId/messages", chatController.GetMessages)
 
 			protected := api.Group("/")
 			protected.Use(auth.Middleware(cfg)) 
