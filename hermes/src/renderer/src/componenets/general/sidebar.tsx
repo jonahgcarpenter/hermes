@@ -10,16 +10,23 @@ import {
   HeadphoneOff,
   User,
   Edit,
-  Trash2
+  Trash2,
+  X,
+  ArrowRight,
+  Upload
 } from 'lucide-react'
 import { useServers, Server } from '../../hooks/useServers'
 import CreateServerModal from '../servers/modals/createServer'
 import EditServerModal from '../servers/modals/editServer'
+import JoinServerModal from '../servers/modals/joinServer'
 
 export default function Sidebar(): React.JSX.Element {
   const { servers, fetchServers, deleteServer } = useServers()
 
+  const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false)
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingServer, setEditingServer] = useState<Server | null>(null)
 
@@ -77,6 +84,16 @@ export default function Sidebar(): React.JSX.Element {
     }
   }
 
+  const openCreateModal = () => {
+    setIsSelectionModalOpen(false)
+    setIsCreateModalOpen(true)
+  }
+
+  const openJoinModal = () => {
+    setIsSelectionModalOpen(false)
+    setIsJoinModalOpen(true)
+  }
+
   return (
     <>
       <aside className="flex h-full w-[72px] flex-col items-center flex-shrink-0 bg-zinc-950 py-3 gap-2 z-20">
@@ -128,7 +145,7 @@ export default function Sidebar(): React.JSX.Element {
           {/* --- New Server Button --- */}
           <div className="group relative flex items-center justify-center w-full mt-1">
             <button
-              onClick={() => setIsCreateModalOpen(true)}
+              onClick={() => setIsSelectionModalOpen(true)}
               onMouseEnter={(e) => handleMouseEnter(e, 'Add a Server')}
               onMouseLeave={handleMouseLeave}
               className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-[24px] bg-zinc-800 text-emerald-500 transition-all duration-200 hover:rounded-[16px] hover:bg-emerald-600 hover:text-white"
@@ -211,9 +228,72 @@ export default function Sidebar(): React.JSX.Element {
         </div>
       )}
 
+      {isSelectionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-zinc-800 w-full max-w-md rounded-lg shadow-xl p-6 relative text-center">
+            <button
+              onClick={() => setIsSelectionModalOpen(false)}
+              className="cursor-pointer absolute top-4 right-4 text-zinc-400 hover:text-zinc-100"
+            >
+              <X size={20} />
+            </button>
+            <h2 className="text-2xl font-bold text-white mb-2">Add a Server</h2>
+            <p className="text-zinc-400 mb-6">Create a new server or join an existing one.</p>
+
+            <div className="space-y-3">
+              <button
+                onClick={openCreateModal}
+                className="cursor-pointer w-full flex items-center justify-between p-4 rounded-lg bg-zinc-900 hover:bg-indigo-600 group transition-all border border-zinc-700/50 hover:border-indigo-500"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-full bg-zinc-800 flex items-center justify-center group-hover:bg-indigo-500/20">
+                    <Upload size={20} className="text-zinc-400 group-hover:text-white" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold text-zinc-200 group-hover:text-white">
+                      Create My Own
+                    </div>
+                    <div className="text-xs text-zinc-500 group-hover:text-zinc-200">
+                      Start a new community
+                    </div>
+                  </div>
+                </div>
+                <ArrowRight size={20} className="text-zinc-500 group-hover:text-white" />
+              </button>
+
+              <button
+                onClick={openJoinModal}
+                className="cursor-pointer w-full flex items-center justify-between p-4 rounded-lg bg-zinc-900 hover:bg-emerald-600 group transition-all border border-zinc-700/50 hover:border-emerald-500"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-full bg-zinc-800 flex items-center justify-center group-hover:bg-emerald-500/20">
+                    <Plus size={20} className="text-zinc-400 group-hover:text-white" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold text-zinc-200 group-hover:text-white">
+                      Join a Server
+                    </div>
+                    <div className="text-xs text-zinc-500 group-hover:text-zinc-200">
+                      Enter an invite code
+                    </div>
+                  </div>
+                </div>
+                <ArrowRight size={20} className="text-zinc-500 group-hover:text-white" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <CreateServerModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={fetchServers}
+      />
+
+      <JoinServerModal
+        isOpen={isJoinModalOpen}
+        onClose={() => setIsJoinModalOpen(false)}
         onSuccess={fetchServers}
       />
 
