@@ -42,6 +42,8 @@ func main() {
 					protected.POST("/servers/join", controllers.JoinServer)
 					protected.GET("/servers", controllers.ListServers)
 					protected.GET("/servers/:id", controllers.ServerDetails)
+					protected.PUT("/servers/:id", controllers.UpdateServer)
+					protected.DELETE("/servers/:id", controllers.DeleteServer)
 			}
 	}
 

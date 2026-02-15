@@ -38,7 +38,6 @@ export function useServers() {
     setError(null)
     try {
       await api.post('/servers', params)
-      // Optimistically update or just re-fetch
       await fetchServers()
       return true
     } catch (err: any) {
@@ -50,11 +49,35 @@ export function useServers() {
     }
   }
 
+  const updateServer = async (id: number, name: string) => {
+    try {
+      await api.put(`/servers/${id}`, { name })
+      await fetchServers()
+      return true
+    } catch (err) {
+      console.error(err)
+      return false
+    }
+  }
+
+  const deleteServer = async (id: number) => {
+    try {
+      await api.delete(`/servers/${id}`)
+      await fetchServers()
+      return true
+    } catch (err) {
+      console.error(err)
+      return false
+    }
+  }
+
   return {
     servers,
     isLoading,
     error,
     fetchServers,
-    createServer
+    createServer,
+    updateServer,
+    deleteServer
   }
 }

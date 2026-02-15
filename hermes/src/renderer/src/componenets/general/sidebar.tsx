@@ -1,28 +1,79 @@
 import React, { useState, useEffect } from 'react'
-import { Home, Plus, Settings, Mic, MicOff, Headphones, HeadphoneOff, User } from 'lucide-react'
-import { useServers } from '../../hooks/useServers'
+import {
+  Home,
+  Plus,
+  Settings,
+  Mic,
+  MicOff,
+  Headphones,
+  HeadphoneOff,
+  User,
+  Edit,
+  Trash2
+} from 'lucide-react'
+import { useServers, Server } from '../../hooks/useServers'
 import CreateServerModal from '../modals/servers/createServer'
-// import { Link } from 'react-router-dom' // Uncomment if you want the Home button to link somewhere
+import EditServerModal from '../modals/servers/editServer'
 
 export default function Sidebar(): React.JSX.Element {
-  const { servers, fetchServers } = useServers()
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const { servers, fetchServers, deleteServer } = useServers()
 
-  useEffect(() => {
-    fetchServers()
-  }, [fetchServers])
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingServer, setEditingServer] = useState<Server | null>(null)
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; server: Server } | null>(
+    null
+  )
 
   const [isMuted, setIsMuted] = useState(false)
   const [isDeafened, setIsDeafened] = useState(false)
   const [tooltip, setTooltip] = useState<{ text: string; top: number } | null>(null)
 
+  useEffect(() => {
+    fetchServers()
+  }, [fetchServers])
+
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null)
+    window.addEventListener('click', handleClick)
+    return () => window.removeEventListener('click', handleClick)
+  }, [])
+
   const handleMouseEnter = (e: React.MouseEvent<HTMLElement>, text: string): void => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    setTooltip({ text, top: rect.top + rect.height / 2 })
+    if (!contextMenu) {
+      const rect = e.currentTarget.getBoundingClientRect()
+      setTooltip({ text, top: rect.top + rect.height / 2 })
+    }
   }
 
   const handleMouseLeave = (): void => {
     setTooltip(null)
+  }
+
+  const handleContextMenu = (e: React.MouseEvent, server: Server) => {
+    e.preventDefault()
+    setTooltip(null)
+    setContextMenu({ x: e.pageX, y: e.pageY, server })
+  }
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (contextMenu) {
+      setEditingServer(contextMenu.server)
+      setIsEditModalOpen(true)
+      setContextMenu(null)
+    }
+  }
+
+  const handleDeleteClick = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (contextMenu) {
+      if (window.confirm(`Are you sure you want to delete ${contextMenu.server.Name}?`)) {
+        await deleteServer(contextMenu.server.ID)
+      }
+      setContextMenu(null)
+    }
   }
 
   return (
@@ -31,7 +82,6 @@ export default function Sidebar(): React.JSX.Element {
         {/* --- Home Button --- */}
         <div className="group relative flex items-center justify-center w-full">
           <div className="absolute left-0 h-2 w-1 scale-0 rounded-r-full bg-white transition-all duration-200 group-hover:h-5 group-hover:scale-100" />
-
           <button
             onMouseEnter={(e) => handleMouseEnter(e, 'Home')}
             onMouseLeave={handleMouseLeave}
@@ -53,6 +103,7 @@ export default function Sidebar(): React.JSX.Element {
               <button
                 onMouseEnter={(e) => handleMouseEnter(e, server.Name)}
                 onMouseLeave={handleMouseLeave}
+                onContextMenu={(e) => handleContextMenu(e, server)}
                 className="cursor-pointer flex h-12 w-12 items-center justify-center overflow-hidden rounded-[24px] bg-zinc-800 transition-all duration-200 hover:rounded-[16px] hover:bg-indigo-500"
               >
                 {server.IconURL ? (
@@ -73,7 +124,7 @@ export default function Sidebar(): React.JSX.Element {
           {/* --- New Server Button --- */}
           <div className="group relative flex items-center justify-center w-full mt-1">
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => setIsCreateModalOpen(true)}
               onMouseEnter={(e) => handleMouseEnter(e, 'Add a Server')}
               onMouseLeave={handleMouseLeave}
               className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-[24px] bg-zinc-800 text-emerald-500 transition-all duration-200 hover:rounded-[16px] hover:bg-emerald-600 hover:text-white"
@@ -121,6 +172,30 @@ export default function Sidebar(): React.JSX.Element {
         </div>
       </aside>
 
+      {/* --- Context Menu --- */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 flex w-48 flex-col rounded-md bg-zinc-900 border border-zinc-800 shadow-xl py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-75"
+          style={{ top: contextMenu.y, left: contextMenu.x + 10 }}
+        >
+          <div className="px-3 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-800 mb-1">
+            {contextMenu.server.Name}
+          </div>
+          <button
+            onClick={handleEditClick}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-300 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer text-left"
+          >
+            <Edit size={16} /> Edit Server
+          </button>
+          <button
+            onClick={handleDeleteClick}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-600 hover:text-white transition-colors cursor-pointer text-left"
+          >
+            <Trash2 size={16} /> Delete Server
+          </button>
+        </div>
+      )}
+
       {/* --- Tooltip --- */}
       {tooltip && (
         <div
@@ -133,9 +208,15 @@ export default function Sidebar(): React.JSX.Element {
       )}
 
       <CreateServerModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
         onSuccess={fetchServers}
+      />
+
+      <EditServerModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        server={editingServer}
       />
     </>
   )

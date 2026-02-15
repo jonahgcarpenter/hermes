@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,11 @@ type CreateRequest struct {
 type JoinRequest struct {
 	ServerID uint   `json:"server_id" binding:"required"`
 	Password string `json:"password"`
+}
+
+type UpdateRequest struct {
+	Name string `json:"name"`
+	// Add other fields later
 }
 
 func CreateServer(c *gin.Context) {
@@ -130,4 +136,57 @@ func ServerDetails(c *gin.Context) {
     }
     
     c.JSON(http.StatusOK, server)
+}
+
+func UpdateServer(c *gin.Context) {
+	userID := c.GetString("userID")
+	serverID := c.Param("id")
+
+	var req UpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var server models.Server
+	if err := database.DB.First(&server, serverID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Server not found"})
+		return
+	}
+
+	if fmt.Sprint(server.OwnerID) != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Only the owner can edit this server"})
+			return
+	}	
+
+	server.Name = req.Name
+	if err := database.DB.Save(&server).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update server"})
+		return
+	}
+
+	c.JSON(http.StatusOK, server)
+}
+
+func DeleteServer(c *gin.Context) {
+	userID := c.GetString("userID")
+	serverID := c.Param("id")
+
+	var server models.Server
+	if err := database.DB.First(&server, serverID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Server not found"})
+		return
+	}
+
+	if fmt.Sprint(server.OwnerID) != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Only the owner can edit this server"})
+			return
+	}	
+
+	if err := database.DB.Delete(&server).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete server"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Server deleted"})
 }
