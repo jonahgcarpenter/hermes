@@ -5,7 +5,7 @@ import { SAMPLE_CHATS } from '../../sample-data/chats'
 export default function ServerPage() {
   const { channelId } = useParams()
 
-  const channelMessages = SAMPLE_CHATS.filter((m) => m.channelId === channelId)
+  const channelMessages = SAMPLE_CHATS.filter((m) => m.channel_id === channelId)
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-zinc-700">
