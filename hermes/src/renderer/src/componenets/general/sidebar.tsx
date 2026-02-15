@@ -13,8 +13,8 @@ import {
   Trash2
 } from 'lucide-react'
 import { useServers, Server } from '../../hooks/useServers'
-import CreateServerModal from '../modals/servers/createServer'
-import EditServerModal from '../modals/servers/editServer'
+import CreateServerModal from '../servers/modals/createServer'
+import EditServerModal from '../servers/modals/editServer'
 
 export default function Sidebar(): React.JSX.Element {
   const { servers, fetchServers, deleteServer } = useServers()
