@@ -4,8 +4,8 @@ tmp_dir = "tmp"
 [build]
   delay = 500
 
-  cmd = "go build -o ./tmp/main ./cmd/hermes/main.go"
-  bin = "./tmp/main"
+  cmd = "go build -o ./tmp/main.exe ./cmd/hermes/main.go"
+  bin = "./tmp/main.exe"
 
   exclude_dir = ["assets", "tmp", "vendor", "public", "testdata"]
 
