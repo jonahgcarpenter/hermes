@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
 	"github.com/jonahgcarpenter/hermes/server/internal/config"
@@ -13,12 +14,18 @@ import (
 var DB *gorm.DB
 
 func Connect(cfg *config.Config) {
+	var connection *gorm.DB
+	var err error
+
 	dsn := cfg.DatabaseURL
+
 	if dsn == "" {
-		log.Fatal("DATABASE_URL is not set in .env")
+		log.Println("DATABASE_URL is not set. Using local SQLite file (hermes.db) as backup.")
+		connection, err = gorm.Open(sqlite.Open("hermes.db"), &gorm.Config{})
+	} else {
+		connection, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	}
 
-	connection, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -26,11 +33,11 @@ func Connect(cfg *config.Config) {
 	log.Println("Migrating database schema...")
 
 	err = connection.AutoMigrate(
-		&models.User{}, 
-		&models.Server{}, 
+		&models.User{},
+		&models.Server{},
 		&models.Channel{},
 	)
-    
+
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
