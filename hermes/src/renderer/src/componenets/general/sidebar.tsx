@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Home,
   Plus,
@@ -82,13 +83,14 @@ export default function Sidebar(): React.JSX.Element {
         {/* --- Home Button --- */}
         <div className="group relative flex items-center justify-center w-full">
           <div className="absolute left-0 h-2 w-1 scale-0 rounded-r-full bg-white transition-all duration-200 group-hover:h-5 group-hover:scale-100" />
-          <button
+          <Link
+            to="/"
             onMouseEnter={(e) => handleMouseEnter(e, 'Home')}
             onMouseLeave={handleMouseLeave}
             className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-[24px] bg-zinc-800 text-zinc-400 transition-all duration-200 hover:rounded-[16px] hover:bg-indigo-500 hover:text-white group-hover:text-white"
           >
             <Home size={24} />
-          </button>
+          </Link>
         </div>
 
         <div className="mx-2 h-[2px] w-8 rounded-lg bg-zinc-800" />
