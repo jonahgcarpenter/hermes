@@ -102,7 +102,9 @@ export default function Sidebar(): React.JSX.Element {
               {/* Active/Hover Pill Indicator */}
               <div className="absolute left-0 h-2 w-1 scale-0 rounded-r-full bg-white transition-all duration-200 group-hover:h-5 group-hover:scale-100" />
 
-              <button
+              <Link
+                to={`/servers/${server.ID}`}
+                state={{ serverName: server.Name }}
                 onMouseEnter={(e) => handleMouseEnter(e, server.Name)}
                 onMouseLeave={handleMouseLeave}
                 onContextMenu={(e) => handleContextMenu(e, server)}
@@ -119,7 +121,7 @@ export default function Sidebar(): React.JSX.Element {
                     {server.Name.substring(0, 2).toUpperCase()}
                   </span>
                 )}
-              </button>
+              </Link>
             </div>
           ))}
 
