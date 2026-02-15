@@ -24,7 +24,14 @@ func Connect(cfg *config.Config) {
 	}
 
 	log.Println("Migrating database schema...")
-	if err := connection.AutoMigrate(&models.User{}); err != nil {
+
+	err = connection.AutoMigrate(
+		&models.User{}, 
+		&models.Server{}, 
+		&models.Channel{},
+	)
+    
+	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 

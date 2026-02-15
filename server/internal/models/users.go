@@ -9,4 +9,7 @@ type User struct {
 	Name       string
 	AvatarURL  string
 	RefreshToken string `json:"-"`
+
+	// Relationships
+	Servers      []Server `gorm:"many2many:server_members;"`
 }

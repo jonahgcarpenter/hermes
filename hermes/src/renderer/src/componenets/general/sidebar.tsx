@@ -1,13 +1,20 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Home, Plus, Settings, Mic, MicOff, Headphones, HeadphoneOff, User } from 'lucide-react'
+import { useServers } from '../../hooks/useServers'
+import CreateServerModal from '../modals/servers/createServer'
+// import { Link } from 'react-router-dom' // Uncomment if you want the Home button to link somewhere
 
 export default function Sidebar(): React.JSX.Element {
+  const { servers, fetchServers } = useServers()
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  useEffect(() => {
+    fetchServers()
+  }, [fetchServers])
+
   const [isMuted, setIsMuted] = useState(false)
   const [isDeafened, setIsDeafened] = useState(false)
-
   const [tooltip, setTooltip] = useState<{ text: string; top: number } | null>(null)
-
-  const servers = [1, 2, 3]
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLElement>, text: string): void => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -39,17 +46,26 @@ export default function Sidebar(): React.JSX.Element {
         {/* --- Server List --- */}
         <div className="flex flex-1 flex-col gap-3 w-full items-center overflow-y-auto no-scrollbar scroll-smooth">
           {servers.map((server) => (
-            <div key={server} className="group relative flex items-center justify-center w-full">
+            <div key={server.ID} className="group relative flex items-center justify-center w-full">
+              {/* Active/Hover Pill Indicator */}
               <div className="absolute left-0 h-2 w-1 scale-0 rounded-r-full bg-white transition-all duration-200 group-hover:h-5 group-hover:scale-100" />
 
               <button
-                onMouseEnter={(e) => handleMouseEnter(e, `Server ${server}`)}
+                onMouseEnter={(e) => handleMouseEnter(e, server.Name)}
                 onMouseLeave={handleMouseLeave}
-                className="cursor-pointer flex h-12 w-12 items-center justify-center overflow-hidden rounded-[24px] bg-zinc-800 transition-all duration-200 hover:rounded-[16px] hover:bg-emerald-600"
+                className="cursor-pointer flex h-12 w-12 items-center justify-center overflow-hidden rounded-[24px] bg-zinc-800 transition-all duration-200 hover:rounded-[16px] hover:bg-indigo-500"
               >
-                <span className="font-semibold text-zinc-300 group-hover:text-white">
-                  S{server}
-                </span>
+                {server.IconURL ? (
+                  <img
+                    src={server.IconURL}
+                    alt={server.Name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="font-semibold text-zinc-300 group-hover:text-white text-sm">
+                    {server.Name.substring(0, 2).toUpperCase()}
+                  </span>
+                )}
               </button>
             </div>
           ))}
@@ -57,6 +73,7 @@ export default function Sidebar(): React.JSX.Element {
           {/* --- New Server Button --- */}
           <div className="group relative flex items-center justify-center w-full mt-1">
             <button
+              onClick={() => setIsModalOpen(true)}
               onMouseEnter={(e) => handleMouseEnter(e, 'Add a Server')}
               onMouseLeave={handleMouseLeave}
               className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-[24px] bg-zinc-800 text-emerald-500 transition-all duration-200 hover:rounded-[16px] hover:bg-emerald-600 hover:text-white"
@@ -104,6 +121,7 @@ export default function Sidebar(): React.JSX.Element {
         </div>
       </aside>
 
+      {/* --- Tooltip --- */}
       {tooltip && (
         <div
           className="fixed left-[80px] z-50 flex items-center rounded-md bg-zinc-900 px-3 py-2 text-sm font-bold text-zinc-100 shadow-xl animate-in fade-in zoom-in-95 duration-75"
@@ -113,6 +131,12 @@ export default function Sidebar(): React.JSX.Element {
           {tooltip.text}
         </div>
       )}
+
+      <CreateServerModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={fetchServers}
+      />
     </>
   )
 }

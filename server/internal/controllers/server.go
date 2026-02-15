@@ -1,0 +1,133 @@
+package controllers
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/jonahgcarpenter/hermes/server/internal/database"
+	"github.com/jonahgcarpenter/hermes/server/internal/models"
+	"github.com/jonahgcarpenter/hermes/server/internal/utils"
+)
+
+type CreateRequest struct {
+	Name      string `json:"name" binding:"required"`
+	IsPrivate bool   `json:"is_private"`
+	Password  string `json:"password"`
+}
+
+type JoinRequest struct {
+	ServerID uint   `json:"server_id" binding:"required"`
+	Password string `json:"password"`
+}
+
+func CreateServer(c *gin.Context) {
+	userID := c.GetString("userID")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var req CreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	passwordHash := ""
+	if req.IsPrivate {
+		if req.Password == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Password required for private servers"})
+			return
+		}
+		
+		hash, err := utils.HashPassword(req.Password)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+			return
+		}
+		passwordHash = hash
+	}
+
+	var user models.User
+	if result := database.DB.Where("id = ?", userID).First(&user); result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	server := models.Server{
+		Name:         req.Name,
+		OwnerID:      user.ID,
+		IsPrivate:    req.IsPrivate,
+		PasswordHash: passwordHash,
+		Members:      []models.User{user},
+		Channels: []models.Channel{
+			{Name: "general", Type: "text"},
+			{Name: "voice", Type: "voice"},
+		},
+	}
+
+	if result := database.DB.Create(&server); result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"server": server})
+}
+
+func JoinServer(c *gin.Context) {
+	userID := c.GetString("userID")
+	
+	var req JoinRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var server models.Server
+	if err := database.DB.First(&server, req.ServerID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Server not found"})
+		return
+	}
+
+	if server.IsPrivate {
+		if !utils.CheckPasswordHash(req.Password, server.PasswordHash) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Incorrect password"})
+			return
+		}
+	}
+
+	var user models.User
+	database.DB.First(&user, "id = ?", userID)
+
+	if err := database.DB.Model(&server).Association("Members").Append(&user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to join server"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Joined server successfully", "server": server})
+}
+
+func ListServers(c *gin.Context) {
+	userID := c.GetString("userID")
+
+	var user models.User
+	if err := database.DB.Preload("Servers").First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"servers": user.Servers})
+}
+
+func ServerDetails(c *gin.Context) {
+    serverID := c.Param("id")
+    
+    var server models.Server
+    if err := database.DB.Preload("Channels").Preload("Members").First(&server, serverID).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Server not found"})
+        return
+    }
+    
+    c.JSON(http.StatusOK, server)
+}
