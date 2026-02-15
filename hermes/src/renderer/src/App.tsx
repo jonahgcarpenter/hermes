@@ -15,6 +15,7 @@ export default function App(): React.JSX.Element {
 
           {/* TODO: Middleware */}
           <Route path="/servers/:serverId" element={<ServerPage />} />
+          <Route path="/servers/:serverId/channels/:channelId" element={<ServerPage />} />
         </Route>
       </Routes>
     </HashRouter>
