@@ -1,6 +1,6 @@
 import { useLocation, useParams } from 'react-router-dom'
 
-export default function ServerPage() {
+export default function ServerInfo() {
   const { state } = useLocation()
   const { serverId } = useParams()
 
