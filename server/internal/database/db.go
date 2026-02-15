@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 
 	"github.com/jonahgcarpenter/hermes/server/internal/config"
