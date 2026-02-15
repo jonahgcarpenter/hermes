@@ -12,6 +12,7 @@ type Server struct {
 	// Security
 	IsPrivate    bool   `gorm:"default:false"`
 	PasswordHash string `json:"-"` // Hide from JSON output
+	InviteCode   string `gorm:"uniqueIndex" json:"invite_code"`
 
 	// Relationships
 	Members      []User     `gorm:"many2many:server_members;"`

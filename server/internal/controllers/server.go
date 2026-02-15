@@ -2,7 +2,9 @@ package controllers
 
 import (
 	"fmt"
+	"math/rand"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -11,6 +13,17 @@ import (
 	"github.com/jonahgcarpenter/hermes/server/internal/utils"
 )
 
+var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+const inviteCharset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+func generateInviteCode(length int) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = inviteCharset[seededRand.Intn(len(inviteCharset))]
+	}
+	return string(b)
+}
+
 type CreateRequest struct {
 	Name      string `json:"name" binding:"required"`
 	IsPrivate bool   `json:"is_private"`
@@ -18,8 +31,8 @@ type CreateRequest struct {
 }
 
 type JoinRequest struct {
-	ServerID uint   `json:"server_id" binding:"required"`
-	Password string `json:"password"`
+	InviteCode string `json:"invite_code" binding:"required"`
+	Password   string `json:"password"`
 }
 
 type UpdateRequest struct {
@@ -61,11 +74,14 @@ func CreateServer(c *gin.Context) {
 		return
 	}
 
+	inviteCode := generateInviteCode(8)
+
 	server := models.Server{
 		Name:         req.Name,
 		OwnerID:      user.ID,
 		IsPrivate:    req.IsPrivate,
 		PasswordHash: passwordHash,
+		InviteCode:   inviteCode,
 		Members:      []models.User{user},
 		Channels: []models.Channel{
 			{Name: "general", Type: "text"},
@@ -81,6 +97,17 @@ func CreateServer(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"server": server})
 }
 
+func GetServerByInvite(c *gin.Context) {
+	code := c.Param("code")
+	var server models.Server
+	
+	if err := database.DB.Select("id", "name", "icon_url", "is_private", "owner_id", "invite_code").Where("invite_code = ?", code).First(&server).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Invalid invite code"})
+		return
+	}
+	c.JSON(http.StatusOK, server)
+}
+
 func JoinServer(c *gin.Context) {
 	userID := c.GetString("userID")
 	
@@ -91,10 +118,10 @@ func JoinServer(c *gin.Context) {
 	}
 
 	var server models.Server
-	if err := database.DB.First(&server, req.ServerID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Server not found"})
+	if err := database.DB.Where("invite_code = ?", req.InviteCode).First(&server).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Invalid invite code"})
 		return
-	}
+	}	
 
 	if server.IsPrivate {
 		if !utils.CheckPasswordHash(req.Password, server.PasswordHash) {

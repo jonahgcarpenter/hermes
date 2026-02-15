@@ -6,6 +6,7 @@ export interface Server {
   Name: string
   IconURL: string
   OwnerID: number
+  IsPrivate?: boolean
 }
 
 interface CreateServerParams {
@@ -49,6 +50,38 @@ export function useServers() {
     }
   }
 
+  const lookupInvite = async (code: string): Promise<Server | null> => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const res = await api.get(`/servers/invite/${code}`)
+      return res.data
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Invalid invite code')
+      return null
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const joinServer = async (inviteCode: string, password?: string): Promise<boolean> => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      await api.post('/servers/join', {
+        invite_code: inviteCode,
+        password: password
+      })
+      await fetchServers()
+      return true
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to join server')
+      return false
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const updateServer = async (id: number, name: string) => {
     try {
       await api.put(`/servers/${id}`, { name })
@@ -77,6 +110,8 @@ export function useServers() {
     error,
     fetchServers,
     createServer,
+    lookupInvite,
+    joinServer,
     updateServer,
     deleteServer
   }

@@ -39,6 +39,7 @@ func main() {
 			protected.Use(auth.Middleware(cfg)) 
 			{
 					protected.POST("/servers", controllers.CreateServer)
+					protected.GET("/servers/invite/:code", controllers.GetServerByInvite)
 					protected.POST("/servers/join", controllers.JoinServer)
 					protected.GET("/servers", controllers.ListServers)
 					protected.GET("/servers/:id", controllers.ServerDetails)
