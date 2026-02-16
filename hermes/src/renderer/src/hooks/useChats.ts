@@ -93,7 +93,6 @@ export const useChat = (channelId: number, userId: number, userName: string) => 
     }
   }, [channelId, userId])
 
-  // Helper to send messages
   const sendMessage = useCallback(
     (content: string) => {
       if (socketRef.current?.readyState === WebSocket.OPEN) {

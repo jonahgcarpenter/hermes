@@ -14,7 +14,6 @@ export default function App(): React.JSX.Element {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
 
-          {/* TODO: Middleware */}
           <Route path="/servers/:serverId" element={<ServerLayout />}>
             <Route path="channels/:channelId" element={<ServerPage />} />
           </Route>
