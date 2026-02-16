@@ -2,13 +2,14 @@ import { useParams } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import Message from '../../componenets/servers/chat/message'
 import SendGif from '../../componenets/servers/modals/sendGif'
-import { Send, Image, Wifi, WifiOff } from 'lucide-react'
+import { Send, Image, Users } from 'lucide-react'
 import { useChat } from '../../hooks/useChats'
 import { useAuth } from '../../context/authContext'
 
 export default function ServerPage() {
   const { channelId } = useParams()
   const { user } = useAuth()
+  const [showMembers, setShowMembers] = useState(false)
 
   const {
     messages: wsMessages,
@@ -46,6 +47,15 @@ export default function ServerPage() {
         <div className="flex items-center text-zinc-200 font-semibold">
           <span className="text-zinc-400 mr-2">#</span>
           {'general'}
+        </div>
+        <div className="flex items-center text-xs">
+          {/* Toggle Members Button */}
+          <button
+            onClick={() => setShowMembers(!showMembers)}
+            className={`transition-colors ${showMembers ? 'text-zinc-100' : 'text-zinc-400 hover:text-zinc-200'}`}
+          >
+            <Users size={20} />
+          </button>
         </div>
       </div>
 
