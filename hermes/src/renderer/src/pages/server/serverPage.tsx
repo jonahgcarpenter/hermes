@@ -62,7 +62,7 @@ export default function ServerPage() {
 
       {/* Chat Area */}
       <div
-        className="flex-1 overflow-y-auto custom-scrollbar flex flex-col px-4 pt-4"
+        className="flex-1 overflow-y-auto scrollbar-none flex flex-col px-4 pt-4"
         ref={scrollRef}
       >
         {!wsMessages || wsMessages.length === 0 ? (
