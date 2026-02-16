@@ -47,17 +47,6 @@ export default function ServerPage() {
           <span className="text-zinc-400 mr-2">#</span>
           {'general'}
         </div>
-        <div className="flex items-center text-xs">
-          {isConnected ? (
-            <span className="flex items-center text-green-500 gap-1">
-              <Wifi size={14} /> Connected
-            </span>
-          ) : (
-            <span className="flex items-center text-red-500 gap-1">
-              <WifiOff size={14} /> Reconnecting...
-            </span>
-          )}
-        </div>
       </div>
 
       {/* Chat Area */}
