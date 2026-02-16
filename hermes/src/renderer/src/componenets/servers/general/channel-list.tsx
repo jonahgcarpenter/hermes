@@ -7,13 +7,25 @@ interface Channel {
   Type: 'text' | 'voice'
 }
 
+interface VoiceUser {
+  ID: number
+  Name: string
+  AvatarURL?: string
+}
+
 interface ChannelListProps {
   channels: Channel[]
   serverName: string
   onJoinVoice?: (channelId: number) => void
+  voiceStates?: Record<number, VoiceUser[]>
 }
 
-export default function ChannelList({ channels, serverName, onJoinVoice }: ChannelListProps) {
+export default function ChannelList({
+  channels,
+  serverName,
+  onJoinVoice,
+  voiceStates = {}
+}: ChannelListProps) {
   const { serverId, channelId } = useParams()
 
   const textChannels = channels.filter((c) => c.Type === 'text')
@@ -63,16 +75,34 @@ export default function ChannelList({ channels, serverName, onJoinVoice }: Chann
           </div>
           <div className="space-y-[2px]">
             {voiceChannels.map((channel) => (
-              <div
-                key={channel.ID}
-                onClick={() => {
-                  console.log('Clicked voice channel:', channel.ID)
-                  onJoinVoice?.(channel.ID)
-                }}
-                className="group flex items-center gap-2 px-2 py-1.5 rounded-md text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300 cursor-pointer transition-all"
-              >
-                <Volume2 size={18} className="flex-shrink-0 text-zinc-500" />
-                <span className="truncate font-medium">{channel.Name}</span>
+              <div key={channel.ID}>
+                <div
+                  onClick={() => {
+                    console.log('Clicked voice channel:', channel.ID)
+                    onJoinVoice?.(channel.ID)
+                  }}
+                  className="group flex items-center gap-2 px-2 py-1.5 rounded-md text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300 cursor-pointer transition-all"
+                >
+                  <Volume2 size={18} className="flex-shrink-0 text-zinc-500" />
+                  <span className="truncate font-medium">{channel.Name}</span>
+                </div>
+
+                {/* Active Voice Users List */}
+                {voiceStates[channel.ID] && voiceStates[channel.ID].length > 0 && (
+                  <div className="ml-8 space-y-1 mb-1">
+                    {voiceStates[channel.ID].map((user) => (
+                      <div
+                        key={user.ID}
+                        className="flex items-center gap-2 px-2 py-1 rounded hover:bg-zinc-800 cursor-pointer"
+                      >
+                        <div className="w-5 h-5 rounded-full bg-zinc-600 overflow-hidden">
+                          {user.AvatarURL ? <img src={user.AvatarURL} alt={user.Name} /> : null}
+                        </div>
+                        <span className="text-sm text-zinc-400 truncate">{user.Name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -9,14 +9,12 @@ export const useVoice = (socket: WebSocket | null, userId: number) => {
   const [remoteStreams, setRemoteStreams] = useState<MediaStream[]>([])
   const peerConnection = useRef<RTCPeerConnection | null>(null)
 
+  const candidateQueue = useRef<RTCIceCandidateInit[]>([])
+  const isSettingRemoteDescription = useRef(false)
+
   const joinVoiceChannel = useCallback(
     async (channelId: number) => {
-      console.log('Attempting to join voice:', channelId, 'Socket readyState:', socket?.readyState)
-
-      if (!socket) {
-        console.error('Socket is null')
-        return
-      }
+      if (!socket) return
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
@@ -28,9 +26,9 @@ export const useVoice = (socket: WebSocket | null, userId: number) => {
         stream.getTracks().forEach((track) => pc.addTrack(track, stream))
 
         pc.ontrack = (event) => {
+          console.log('Received Remote Track')
           const remoteStream = event.streams[0]
           setRemoteStreams((prev) => [...prev, remoteStream])
-
           const audio = new Audio()
           audio.srcObject = remoteStream
           audio.autoplay = true
@@ -47,8 +45,6 @@ export const useVoice = (socket: WebSocket | null, userId: number) => {
             )
           }
         }
-
-        console.log('Sending join_voice message for user:', userId)
 
         socket.send(
           JSON.stringify({
@@ -67,25 +63,46 @@ export const useVoice = (socket: WebSocket | null, userId: number) => {
   const handleSignal = useCallback(
     async (msg: any) => {
       if (!peerConnection.current) return
-
       const pc = peerConnection.current
 
       if (msg.type === 'offer') {
-        await pc.setRemoteDescription(new RTCSessionDescription(msg.data.sdp)) // msg.data.sdp based on your backend structure
-        const answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
+        console.log('Handling Offer')
+        try {
+          isSettingRemoteDescription.current = true
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
+          isSettingRemoteDescription.current = false
+          console.log('Remote Description Set Successfully')
 
-        socket?.send(
-          JSON.stringify({
-            type: 'answer',
-            user_id: userId,
-            data: answer
-          })
-        )
-      } else if (msg.type === 'answer') {
-        await pc.setRemoteDescription(new RTCSessionDescription(msg.data))
+          // Process queued candidates
+          while (candidateQueue.current.length > 0) {
+            const cand = candidateQueue.current.shift()
+            if (cand) {
+              console.log('Processing queued ICE candidate')
+              await pc
+                .addIceCandidate(new RTCIceCandidate(cand))
+                .catch((e) => console.warn('Retrying candidate failed:', e))
+            }
+          }
+
+          const answer = await pc.createAnswer()
+          await pc.setLocalDescription(answer)
+          socket?.send(JSON.stringify({ type: 'answer', user_id: userId, data: answer }))
+        } catch (err) {
+          isSettingRemoteDescription.current = false
+          console.error('Error handling offer:', err)
+        }
       } else if (msg.type === 'ice_candidate') {
-        await pc.addIceCandidate(new RTCIceCandidate(msg.data.candidate))
+        const candidateData = msg.candidate
+        if (candidateData) {
+          if (pc.remoteDescription && !isSettingRemoteDescription.current) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidateData)).catch((e) => {
+              if (!e.message.includes('mlines: 0')) console.error(e)
+            })
+          } else {
+            console.log('Queueing ICE Candidate (remote description not ready)')
+            candidateQueue.current.push(candidateData)
+          }
+        }
       }
     },
     [socket, userId]
@@ -96,7 +113,7 @@ export const useVoice = (socket: WebSocket | null, userId: number) => {
       localStream?.getTracks().forEach((track) => track.stop())
       peerConnection.current?.close()
     }
-  }, [])
+  }, [localStream])
 
   return { joinVoiceChannel, handleSignal, remoteStreams }
 }

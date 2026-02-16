@@ -7,24 +7,24 @@ import (
 )
 
 type WSMessage struct {
-	Type       string `json:"type"`
-	ChannelID  uint   `json:"channel_id"`
-	UserID     uint   `json:"user_id"`
-	Content    string `json:"content"`
-	ID         string `json:"id"`
-	Username   string `json:"username"`
-	UserAvatar string `json:"user_avatar"`
-	Data interface{} `json:"data,omitempty"`
+	Type       string      `json:"type"`
+	ChannelID  uint        `json:"channel_id"`
+	UserID     uint        `json:"user_id"`
+	Content    string      `json:"content"`
+	ID         string      `json:"id"`
+	Username   string      `json:"username"`
+	UserAvatar string      `json:"user_avatar"`
+	Data       interface{} `json:"data,omitempty"`
 }
 
 type Hub struct {
-	clients map[*Client]bool
-	channels map[uint]map[*Client]bool
-	broadcast chan WSMessage
-	register chan *Client
+	clients    map[*Client]bool
+	channels   map[uint]map[*Client]bool
+	broadcast  chan WSMessage
+	register   chan *Client
 	unregister chan *Client
-	mu sync.RWMutex
-	SFU *sfu.SFU
+	mu         sync.RWMutex
+	SFU        *sfu.SFU
 }
 
 func NewHub() *Hub {
@@ -78,7 +78,7 @@ func (h *Hub) Run() {
 				for _, subscribers := range h.channels {
 					delete(subscribers, client)
 				}
-				// TODO: You might want to notify the SFU here that a user disconnected
+				// TODO: Notify SFU of leave
 				// h.SFU.Leave(client.UserID)
 			}
 			h.mu.Unlock()
@@ -86,6 +86,38 @@ func (h *Hub) Run() {
 		case message := <-h.broadcast:
 			if message.Type == "join_voice" {
 				h.SFU.Join(message.ChannelID, message.UserID)
+
+				h.mu.Lock()
+				var joiningClient *Client
+				for c := range h.clients {
+					if c.UserID == message.UserID {
+						joiningClient = c
+						break
+					}
+				}
+				if joiningClient != nil {
+					if _, ok := h.channels[message.ChannelID]; !ok {
+						h.channels[message.ChannelID] = make(map[*Client]bool)
+					}
+					h.channels[message.ChannelID][joiningClient] = true
+				}
+				h.mu.Unlock()
+
+				broadcastMsg := message
+				broadcastMsg.Type = "user_joined_voice"
+				
+				h.mu.RLock()
+				if subscribers, ok := h.channels[message.ChannelID]; ok {
+					for client := range subscribers {
+						select {
+						case client.send <- broadcastMsg:
+						default:
+							close(client.send)
+							delete(h.clients, client)
+						}
+					}
+				}
+				h.mu.RUnlock()
 				continue
 			} else if message.Type == "offer" || message.Type == "answer" || message.Type == "ice_candidate" {
 				h.SFU.HandleSignal(message.UserID, message.Type, message.Data)

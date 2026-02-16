@@ -47,10 +47,19 @@ func (s *SFU) Join(channelID, userID uint) (*UserSession, error) {
 		return nil, err
 	}
 
+	_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{
+		Direction: webrtc.RTPTransceiverDirectionRecvonly,
+	})
+	if err != nil {
+		log.Printf("Error adding transceiver: %v", err)
+		return nil, err
+	}
+
 	session := &UserSession{UserID: userID, PeerConnection: pc}
 	s.sessions[channelID][userID] = session
 
 	pc.OnTrack(func(remoteTrack *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
+		log.Printf("SFU: Received audio track from user %d", userID)
 		localTrack, err := webrtc.NewTrackLocalStaticRTP(
 			remoteTrack.Codec().RTPCodecCapability,
 			fmt.Sprintf("audio-%d", userID),
@@ -95,7 +104,6 @@ func (s *SFU) Join(channelID, userID uint) (*UserSession, error) {
 		}
 		
 		candidateJSON := c.ToJSON()
-		
 		s.SignalSender(userID, map[string]interface{}{
 			"type":      "ice_candidate",
 			"candidate": candidateJSON,
@@ -104,13 +112,16 @@ func (s *SFU) Join(channelID, userID uint) (*UserSession, error) {
 
 	offer, err := pc.CreateOffer(nil)
 	if err != nil {
+		log.Printf("Error creating offer: %v", err)
 		return nil, err
 	}
 	
 	if err = pc.SetLocalDescription(offer); err != nil {
+		log.Printf("Error setting local description: %v", err)
 		return nil, err
 	}
 
+	log.Printf("SFU: Sending offer to user %d", userID)
 	s.SignalSender(userID, map[string]interface{}{
 		"type": "offer",
 		"sdp":  offer,

@@ -84,8 +84,15 @@ func (c *Client) readPump() {
 			msg.ID = fmt.Sprintf("%d", dbMsg.ID)
 
 			c.Hub.broadcast <- msg
-		} else if msg.Type == "join_voice" || msg.Type == "offer" || msg.Type == "answer" || msg.Type == "ice_candidate" {
-    	c.Hub.broadcast <- msg
+		} else if msg.Type == "join_voice" {
+			var user models.User
+			if result := database.DB.First(&user, c.UserID); result.Error == nil {
+				msg.Username = user.Name
+				msg.UserAvatar = user.AvatarURL
+			}
+			c.Hub.broadcast <- msg
+		} else if msg.Type == "offer" || msg.Type == "answer" || msg.Type == "ice_candidate" {
+			c.Hub.broadcast <- msg
 		} else {
 			log.Printf("WARNING: Unhandled message type: %s", msg.Type)
 		}
@@ -125,14 +132,14 @@ func ServeWS(hub *Hub, c *gin.Context) {
 	}
 
 	userIdStr := c.Query("user_id")
-    var userID uint
-    fmt.Sscanf(userIdStr, "%d", &userID)
-    
-    if userID == 0 {
-        log.Println("Error: Invalid or missing user_id query param")
-        conn.Close()
-        return
-    }
+	var userID uint
+	fmt.Sscanf(userIdStr, "%d", &userID)
+
+	if userID == 0 {
+		log.Println("Error: Invalid or missing user_id query param")
+		conn.Close()
+		return
+	}
 
 	client := &Client{Hub: hub, Conn: conn, send: make(chan WSMessage, 256), UserID: userID}
 	client.Hub.register <- client

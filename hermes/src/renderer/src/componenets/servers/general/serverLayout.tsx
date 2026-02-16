@@ -25,12 +25,21 @@ interface ServerDetails {
   OwnerID: number
 }
 
+// Interface for tracking users in voice channels
+interface VoiceUser {
+  ID: number
+  Name: string
+  AvatarURL?: string
+}
+
 export default function ServerLayout() {
   const { serverId } = useParams()
   const { user, isLoading: authLoading } = useAuth()
   const [server, setServer] = useState<ServerDetails | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [signalingSocket, setSignalingSocket] = useState<WebSocket | null>(null)
+
+  const [voiceStates, setVoiceStates] = useState<Record<number, VoiceUser[]>>({})
 
   useEffect(() => {
     if (!user) return
@@ -59,8 +68,27 @@ export default function ServerLayout() {
     const handleMessage = (event: MessageEvent) => {
       try {
         const msg = JSON.parse(event.data)
-        if (['offer', 'answer', 'ice_candidate'].includes(msg.type)) {
-          handleSignal(msg)
+
+        // Handle User List Updates
+        if (msg.type === 'user_joined_voice') {
+          setVoiceStates((prev) => {
+            const channelUsers = prev[msg.channel_id] || []
+            if (channelUsers.some((u) => u.ID === msg.user_id)) return prev
+            return {
+              ...prev,
+              [msg.channel_id]: [
+                ...channelUsers,
+                { ID: msg.user_id, Name: msg.username, AvatarURL: msg.user_avatar }
+              ]
+            }
+          })
+        }
+
+        // Handle Signaling (WebRTC)
+        // The server wraps offers/answers in a "signal" type. We must unwrap it.
+        if (msg.type === 'signal') {
+          console.log('Received signal:', msg.data)
+          handleSignal(msg.data)
         }
       } catch (e) {
         console.error('Failed to parse WS message', e)
@@ -109,6 +137,7 @@ export default function ServerLayout() {
         channels={server.Channels}
         serverName={server.Name}
         onJoinVoice={joinVoiceChannel}
+        voiceStates={voiceStates}
       />
 
       <main className="flex-1 flex flex-col bg-zinc-700 overflow-hidden relative">
