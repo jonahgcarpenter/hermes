@@ -2,7 +2,6 @@ package sfu
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"sync"
 
@@ -16,9 +15,10 @@ type SFU struct {
 }
 
 type UserSession struct {
-	UserID         uint
-	PeerConnection *webrtc.PeerConnection
-	Tracks         []*webrtc.TrackLocalStaticRTP
+	UserID            uint
+	PeerConnection    *webrtc.PeerConnection
+	Tracks            []*webrtc.TrackLocalStaticRTP
+	PendingCandidates []webrtc.ICECandidateInit
 }
 
 func NewSFU(signalSender func(uint, interface{})) *SFU {
@@ -29,6 +29,7 @@ func NewSFU(signalSender func(uint, interface{})) *SFU {
 }
 
 func (s *SFU) Join(channelID, userID uint) (*UserSession, error) {
+	log.Printf("[SFU] User %d joining channel %d", userID, channelID)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -37,91 +38,83 @@ func (s *SFU) Join(channelID, userID uint) (*UserSession, error) {
 	}
 
 	config := webrtc.Configuration{
-		ICEServers: []webrtc.ICEServer{
-			{URLs: []string{"stun:stun.l.google.com:19302"}},
-		},
+		ICEServers: []webrtc.ICEServer{}, 
 	}
 
+	log.Println("[SFU] DEBUG: Creating PeerConnection (Global)...")
 	pc, err := webrtc.NewPeerConnection(config)
 	if err != nil {
+		log.Printf("[SFU] Failed to create PeerConnection: %v", err)
 		return nil, err
 	}
+
+	log.Println("[SFU] DEBUG: PeerConnection Created! Adding Transceiver...")
 
 	_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{
 		Direction: webrtc.RTPTransceiverDirectionRecvonly,
 	})
 	if err != nil {
-		log.Printf("Error adding transceiver: %v", err)
+		log.Printf("[SFU] Failed to add transceiver: %v", err)
 		return nil, err
 	}
 
-	session := &UserSession{UserID: userID, PeerConnection: pc}
+	session := &UserSession{
+		UserID:         userID,
+		PeerConnection: pc,
+	}
 	s.sessions[channelID][userID] = session
 
-	pc.OnTrack(func(remoteTrack *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
-		log.Printf("SFU: Received audio track from user %d", userID)
-		localTrack, err := webrtc.NewTrackLocalStaticRTP(
-			remoteTrack.Codec().RTPCodecCapability,
-			fmt.Sprintf("audio-%d", userID),
-			fmt.Sprintf("pion-%d", userID),
-		)
+	pc.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
+		log.Printf("[SFU] Received Track from User %d: %s %s", userID, track.ID(), track.Kind())
+		
+		localTrack, err := webrtc.NewTrackLocalStaticRTP(track.Codec().RTPCodecCapability, track.ID(), track.StreamID())
 		if err != nil {
-			log.Printf("Error creating local track: %v", err)
+			log.Printf("[SFU] Error creating local track: %v", err)
 			return
 		}
 
-		go func() {
-			buf := make([]byte, 1500)
-			for {
-				i, _, err := remoteTrack.Read(buf)
-				if err != nil {
-					return
-				}
-				if _, err = localTrack.Write(buf[:i]); err != nil {
-					return
-				}
-			}
-		}()
+		go s.fanOutTrack(channelID, userID, localTrack)
 
-		s.fanOutTrack(channelID, userID, localTrack)
+		buf := make([]byte, 1500)
+		for {
+			i, _, err := track.Read(buf)
+			if err != nil {
+				return
+			}
+			if _, err = localTrack.Write(buf[:i]); err != nil {
+				return
+			}
+		}
 	})
 
-	for otherUserID, otherSession := range s.sessions[channelID] {
-		if otherUserID == userID {
-			continue
-		}
-
-		for _, track := range otherSession.Tracks {
-			if _, err := pc.AddTrack(track); err != nil {
-				log.Printf("Error adding existing track from user %d to user %d: %v", otherUserID, userID, err)
-			}
-		}
-	}
-
 	pc.OnICECandidate(func(c *webrtc.ICECandidate) {
-		if c == nil {
-			return
-		}
-		
-		candidateJSON := c.ToJSON()
+		if c == nil { return }
 		s.SignalSender(userID, map[string]interface{}{
 			"type":      "ice_candidate",
-			"candidate": candidateJSON,
+			"candidate": c.ToJSON(),
 		})
 	})
 
+	pc.OnConnectionStateChange(func(p webrtc.PeerConnectionState) {
+		log.Printf("[SFU] PC State for User %d: %s", userID, p.String())
+	})
+
+	log.Println("[SFU] DEBUG: Creating Offer...")
+	
 	offer, err := pc.CreateOffer(nil)
 	if err != nil {
-		log.Printf("Error creating offer: %v", err)
-		return nil, err
-	}
-	
-	if err = pc.SetLocalDescription(offer); err != nil {
-		log.Printf("Error setting local description: %v", err)
+		log.Printf("[SFU] CreateOffer Failed: %v", err)
 		return nil, err
 	}
 
-	log.Printf("SFU: Sending offer to user %d", userID)
+	log.Println("[SFU] DEBUG: Offer Created. Setting Local Description...")
+
+	if err = pc.SetLocalDescription(offer); err != nil {
+		log.Printf("[SFU] SetLocalDescription Failed: %v", err)
+		return nil, err
+	}
+
+	log.Printf("[SFU] Sending OFFER to User %d", userID)
 	s.SignalSender(userID, map[string]interface{}{
 		"type": "offer",
 		"sdp":  offer,
@@ -142,35 +135,56 @@ func (s *SFU) HandleSignal(userID uint, signalType string, data interface{}) {
 	s.mu.RUnlock()
 
 	if session == nil {
-		log.Printf("HandleSignal: No session found for user %d", userID)
+		log.Printf("[SFU] HandleSignal ignored: No session for User %d", userID)
 		return
 	}
 
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		log.Printf("Error marshalling signal data: %v", err)
+		log.Printf("[SFU] JSON Marshal error: %v", err)
 		return
 	}
 
 	switch signalType {
 	case "answer":
+		log.Printf("[SFU] Received ANSWER from User %d", userID)
 		var answer webrtc.SessionDescription
 		if err := json.Unmarshal(jsonData, &answer); err != nil {
-			log.Printf("Error unmarshalling answer: %v", err)
+			log.Printf("[SFU] Answer Unmarshal error: %v", err)
 			return
 		}
+
 		if err := session.PeerConnection.SetRemoteDescription(answer); err != nil {
-			log.Printf("Error setting remote description: %v", err)
+			log.Printf("[SFU] SetRemoteDescription ERROR: %v", err)
+			return
+		}
+		log.Printf("[SFU] Remote Description Set for User %d", userID)
+
+		if len(session.PendingCandidates) > 0 {
+			log.Printf("[SFU] Processing %d queued candidates for User %d", len(session.PendingCandidates), userID)
+			for _, c := range session.PendingCandidates {
+				if err := session.PeerConnection.AddICECandidate(c); err != nil {
+					log.Printf("[SFU] Failed to add queued candidate: %v", err)
+				}
+			}
+			session.PendingCandidates = nil
 		}
 
 	case "ice_candidate":
 		var candidateInit webrtc.ICECandidateInit
 		if err := json.Unmarshal(jsonData, &candidateInit); err != nil {
-			log.Printf("Error unmarshalling ICE candidate: %v", err)
+			log.Printf("[SFU] Candidate Unmarshal error: %v", err)
 			return
 		}
-		if err := session.PeerConnection.AddICECandidate(candidateInit); err != nil {
-			log.Printf("Error adding ICE candidate: %v", err)
+
+		if session.PeerConnection.RemoteDescription() == nil {
+			log.Printf("[SFU] Queueing ICE Candidate for User %d (RemoteDescription is nil)", userID)
+			session.PendingCandidates = append(session.PendingCandidates, candidateInit)
+		} else {
+			log.Printf("[SFU] Adding ICE Candidate for User %d", userID)
+			if err := session.PeerConnection.AddICECandidate(candidateInit); err != nil {
+				log.Printf("[SFU] AddICECandidate ERROR: %v", err)
+			}
 		}
 	}
 }
@@ -188,16 +202,20 @@ func (s *SFU) fanOutTrack(channelID, sourceUserID uint, track *webrtc.TrackLocal
 			continue
 		}
 
+		log.Printf("[SFU] Fanning out track from %d to %d", sourceUserID, targetID)
 		if _, err := session.PeerConnection.AddTrack(track); err != nil {
-			log.Printf("Error adding track to user %d: %v", targetID, err)
+			log.Printf("[SFU] Error adding track to user %d: %v", targetID, err)
 			continue
 		}
 
 		offer, err := session.PeerConnection.CreateOffer(nil)
 		if err != nil {
+			log.Printf("[SFU] Error creating renegotiation offer for %d: %v", targetID, err)
 			continue
 		}
-		if err = session.PeerConnection.SetLocalDescription(offer); err != nil {
+
+		if err := session.PeerConnection.SetLocalDescription(offer); err != nil {
+			log.Printf("[SFU] Error setting local description for %d: %v", targetID, err)
 			continue
 		}
 

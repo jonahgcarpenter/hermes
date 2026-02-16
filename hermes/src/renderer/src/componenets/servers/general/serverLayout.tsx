@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, Outlet } from 'react-router-dom'
 import ChannelList from './channel-list'
 import MembersList from './members-list'
@@ -25,11 +25,22 @@ interface ServerDetails {
   OwnerID: number
 }
 
-// Interface for tracking users in voice channels
 interface VoiceUser {
   ID: number
   Name: string
   AvatarURL?: string
+}
+
+const AudioPlayer = ({ stream }: { stream: MediaStream }) => {
+  const ref = useRef<HTMLAudioElement>(null)
+
+  useEffect(() => {
+    if (ref.current && stream) {
+      ref.current.srcObject = stream
+    }
+  }, [stream])
+
+  return <audio ref={ref} autoPlay controls={false} />
 }
 
 export default function ServerLayout() {
@@ -38,7 +49,6 @@ export default function ServerLayout() {
   const [server, setServer] = useState<ServerDetails | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [signalingSocket, setSignalingSocket] = useState<WebSocket | null>(null)
-
   const [voiceStates, setVoiceStates] = useState<Record<number, VoiceUser[]>>({})
 
   useEffect(() => {
@@ -47,7 +57,6 @@ export default function ServerLayout() {
     const ws = new WebSocket(`ws://localhost:8080/api/ws?user_id=${user.ID}`)
 
     ws.onopen = () => {
-      console.log('WS Connected for User:', user.ID)
       setSignalingSocket(ws)
     }
 
@@ -60,7 +69,10 @@ export default function ServerLayout() {
     }
   }, [user?.ID])
 
-  const { joinVoiceChannel, handleSignal } = useVoice(signalingSocket, user?.ID || 0)
+  const { joinVoiceChannel, handleSignal, remoteStreams, connectionStatus } = useVoice(
+    signalingSocket,
+    user?.ID || 0
+  )
 
   useEffect(() => {
     if (!signalingSocket) return
@@ -69,7 +81,6 @@ export default function ServerLayout() {
       try {
         const msg = JSON.parse(event.data)
 
-        // Handle User List Updates
         if (msg.type === 'user_joined_voice') {
           setVoiceStates((prev) => {
             const channelUsers = prev[msg.channel_id] || []
@@ -84,14 +95,11 @@ export default function ServerLayout() {
           })
         }
 
-        // Handle Signaling (WebRTC)
-        // The server wraps offers/answers in a "signal" type. We must unwrap it.
         if (msg.type === 'signal') {
-          console.log('Received signal:', msg.data)
           handleSignal(msg.data)
         }
       } catch (e) {
-        console.error('Failed to parse WS message', e)
+        console.error(e)
       }
     }
 
@@ -109,7 +117,7 @@ export default function ServerLayout() {
         const res = await api.get(`/servers/${serverId}`)
         setServer(res.data)
       } catch (err) {
-        console.error('Failed to load server details', err)
+        console.error(err)
       } finally {
         setIsLoading(false)
       }
@@ -139,6 +147,29 @@ export default function ServerLayout() {
         onJoinVoice={joinVoiceChannel}
         voiceStates={voiceStates}
       />
+
+      <div className="absolute bottom-4 left-4 z-50 bg-black/80 text-white text-xs p-2 rounded pointer-events-none">
+        Voice Status:{' '}
+        <span
+          className={
+            connectionStatus === 'connected'
+              ? 'text-green-500'
+              : connectionStatus === 'failed'
+                ? 'text-red-500'
+                : 'text-yellow-500'
+          }
+        >
+          {connectionStatus}
+        </span>
+        <br />
+        Receiving {remoteStreams.length} Audio Streams
+      </div>
+
+      <div className="hidden">
+        {remoteStreams.map((stream) => (
+          <AudioPlayer key={stream.id} stream={stream} />
+        ))}
+      </div>
 
       <main className="flex-1 flex flex-col bg-zinc-700 overflow-hidden relative">
         <Outlet context={{ server }} />

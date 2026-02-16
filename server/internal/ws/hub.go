@@ -2,6 +2,7 @@ package ws
 
 import (
 	"sync"
+	"log"
 
 	"github.com/jonahgcarpenter/hermes/server/internal/sfu"
 )
@@ -120,6 +121,7 @@ func (h *Hub) Run() {
 				h.mu.RUnlock()
 				continue
 			} else if message.Type == "offer" || message.Type == "answer" || message.Type == "ice_candidate" {
+				log.Printf("[Hub] Routing signal %s from User %d to SFU", message.Type, message.UserID)
 				h.SFU.HandleSignal(message.UserID, message.Type, message.Data)
 				continue
 			}
