@@ -1,6 +1,3 @@
-// component to display a message
-import React from 'react'
-
 interface MessageProps {
   id: string
   content: string
@@ -10,13 +7,26 @@ interface MessageProps {
     color?: string
   }
   timestamp: string
-  isHead?: boolean // If true, show avatar and header. If false, compact mode.
+  isHead?: boolean
+}
+
+const isImage = (url: string) => {
+  try {
+    const { pathname } = new URL(url)
+    return /\.(gif|jpe?g|tiff?|png|webp|bmp)$/i.test(pathname)
+  } catch {
+    return false
+  }
 }
 
 export default function Message({ content, member, timestamp, isHead = true }: MessageProps) {
+  const isImg = isImage(content)
+
   return (
     <div
-      className={`group flex items-start gap-3 px-4 py-1 hover:bg-zinc-800/30 w-full ${isHead ? 'mt-[17px]' : 'mt-0.5'}`}
+      className={`group flex items-start gap-3 px-4 py-1 hover:bg-zinc-800/30 w-full ${
+        isHead ? 'mt-[17px]' : 'mt-0.5'
+      }`}
     >
       {isHead ? (
         <div className="cursor-pointer w-10 h-10 rounded-full bg-indigo-500 flex-shrink-0 flex items-center justify-center text-white overflow-hidden mt-0.5">
@@ -48,11 +58,25 @@ export default function Message({ content, member, timestamp, isHead = true }: M
             </span>
           </div>
         )}
-        <p
-          className={`text-zinc-300 whitespace-pre-wrap break-words ${!isHead ? 'leading-tight' : ''}`}
-        >
-          {content}
-        </p>
+
+        {/* Image vs Text */}
+        {isImg ? (
+          <div className="mt-2">
+            <img
+              src={content}
+              alt="Attachment"
+              className="rounded-md max-w-sm max-h-[300px] object-cover border border-zinc-700"
+            />
+          </div>
+        ) : (
+          <p
+            className={`text-zinc-300 whitespace-pre-wrap break-words ${
+              !isHead ? 'leading-tight' : ''
+            }`}
+          >
+            {content}
+          </p>
+        )}
       </div>
     </div>
   )

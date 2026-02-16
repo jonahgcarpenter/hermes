@@ -36,6 +36,7 @@ func Connect(cfg *config.Config) {
 		&models.User{},
 		&models.Server{},
 		&models.Channel{},
+		&models.Message{},
 	)
 
 	if err != nil {

@@ -1,81 +1,129 @@
-import React, { useEffect, useState } from 'react'
-import { useParams, Outlet } from 'react-router-dom'
-import { useServers } from '../../hooks/useServers'
-import ChannelList from '../../componenets/servers/general/channel-list'
-import MembersList from '../../componenets/servers/general/members-list'
-import api from '../../lib/api' // You might need to add a specific get call for details
-
-// Define proper interfaces based on your backend models
-interface Channel {
-  ID: number
-  Name: string
-  Type: 'text' | 'voice'
-}
-
-interface User {
-  ID: number
-  Name: string
-  AvatarURL?: string
-}
-
-interface ServerDetails {
-  Name: string
-  Channels: Channel[]
-  Members: User[]
-  OwnerID: number
-}
+import { useParams } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import Message from '../../componenets/servers/chat/message'
+import SendGif from '../../componenets/servers/modals/sendGif'
+import { Send, Image, Users } from 'lucide-react'
+import { useChat } from '../../hooks/useChats'
+import { useAuth } from '../../context/authContext'
 
 export default function ServerPage() {
-  const { serverId } = useParams()
-  const [server, setServer] = useState<ServerDetails | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const { channelId } = useParams()
+  const { user } = useAuth()
+  const [showMembers, setShowMembers] = useState(false)
+
+  const {
+    messages: wsMessages,
+    sendMessage,
+    isConnected
+  } = useChat(Number(channelId), user?.id || 0, user?.name || 'Anonymous')
+
+  const [input, setInput] = useState('')
+  const [showGifModal, setShowGifModal] = useState(false)
+
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const fetchDetails = async () => {
-      if (!serverId) return
-      setIsLoading(true)
-      try {
-        const res = await api.get(`/servers/${serverId}`)
-        setServer(res.data)
-      } catch (err) {
-        console.error('Failed to load server details', err)
-      } finally {
-        setIsLoading(false)
-      }
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-    fetchDetails()
-  }, [serverId])
+  }, [wsMessages])
 
-  if (isLoading) {
-    return <div className="flex-1 flex items-center justify-center text-zinc-400">Loading...</div>
+  const handleSend = (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (!input.trim()) return
+    sendMessage(input)
+    setInput('')
   }
 
-  if (!server) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400">Server not found</div>
-    )
+  const handleSendGifUrl = (url: string) => {
+    sendMessage(url)
+    setShowGifModal(false)
   }
 
   return (
-    <div className="flex h-full w-full overflow-hidden">
-      {/* Left Sidebar: Channels */}
-      <ChannelList channels={server.Channels} serverName={server.Name} />
-
-      {/* Main Content Area (Chat) */}
-      <main className="flex-1 flex flex-col bg-zinc-700 overflow-hidden relative">
-        {/* We use Outlet here so the Chat/Channel page renders inside this slot */}
-        {/* If no channel is selected, we can show a placeholder */}
-        <Outlet context={{ server }} />
-
-        {/* Temporary placeholder if strictly on /servers/:id with no channel */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-10">
-          <h1 className="text-4xl font-bold text-white uppercase tracking-widest">{server.Name}</h1>
+    <div className="flex flex-col h-full bg-[#313338]">
+      {/* Header */}
+      <div className="h-12 border-b border-[#26272D] flex items-center px-4 shadow-sm justify-between">
+        <div className="flex items-center text-zinc-200 font-semibold">
+          <span className="text-zinc-400 mr-2">#</span>
+          {'general'}
         </div>
-      </main>
+        <div className="flex items-center text-xs">
+          {/* Toggle Members Button */}
+          <button
+            onClick={() => setShowMembers(!showMembers)}
+            className={`transition-colors ${showMembers ? 'text-zinc-100' : 'text-zinc-400 hover:text-zinc-200'}`}
+          >
+            <Users size={20} />
+          </button>
+        </div>
+      </div>
 
-      {/* Right Sidebar: Members */}
-      <MembersList
-        members={server.Members.map((m) => ({ ...m, IsOwner: m.ID === server.OwnerID }))}
+      {/* Chat Area */}
+      <div
+        className="flex-1 overflow-y-auto scrollbar-none flex flex-col px-4 pt-4"
+        ref={scrollRef}
+      >
+        {!wsMessages || wsMessages.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-zinc-500">
+            <p>Welcome to #{channelId}!</p>
+            <p className="text-sm">This is the start of the channel.</p>
+          </div>
+        ) : (
+          wsMessages.map((msg, i) => {
+            return (
+              <Message
+                key={msg.id || i}
+                id={msg.id || String(i)}
+                content={msg.content || ''}
+                timestamp={msg.timestamp || new Date().toISOString()}
+                member={{
+                  name: msg.username,
+                  avatarUrl: msg.user_avatar,
+                  color: '#f87171'
+                }}
+              />
+            )
+          })
+        )}
+      </div>
+
+      {/* Input Area */}
+      <div className="px-4 pb-6 pt-2">
+        <div className="bg-[#383A40] rounded-lg p-2 flex items-center gap-2">
+          <button
+            onClick={() => setShowGifModal(true)}
+            className="text-zinc-400 hover:text-zinc-200 p-2 transition-colors"
+          >
+            <Image size={24} />
+          </button>
+
+          <form onSubmit={handleSend} className="flex-1">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={`Message #${channelId}`}
+              className="w-full bg-transparent text-zinc-200 placeholder-zinc-400 outline-none"
+              disabled={!isConnected}
+            />
+          </form>
+
+          <button
+            onClick={() => handleSend()}
+            disabled={!input.trim() || !isConnected}
+            className="text-zinc-400 hover:text-zinc-200 p-2 transition-colors disabled:opacity-50"
+          >
+            <Send size={24} />
+          </button>
+        </div>
+      </div>
+
+      {/* GIF Modal */}
+      <SendGif
+        isOpen={showGifModal}
+        onClose={() => setShowGifModal(false)}
+        onSelectGif={handleSendGifUrl}
       />
     </div>
   )
