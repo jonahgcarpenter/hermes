@@ -56,7 +56,7 @@ export default function SendGif({ isOpen, onClose, onSelectGif }: SendGifProps) 
             <input
               type="text"
               className="w-full rounded bg-[#1E1F22] text-zinc-200 px-3 py-2 pl-3 pr-10 outline-none focus:ring-2 focus:ring-indigo-500 placeholder-zinc-400 transition-all"
-              placeholder="Search Tenor/Giphy..."
+              placeholder="Search Giphy"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               autoFocus
