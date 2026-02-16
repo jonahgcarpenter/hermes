@@ -18,6 +18,7 @@ type SFU struct {
 type UserSession struct {
 	UserID         uint
 	PeerConnection *webrtc.PeerConnection
+	Tracks         []*webrtc.TrackLocalStaticRTP
 }
 
 func NewSFU(signalSender func(uint, interface{})) *SFU {
@@ -75,6 +76,18 @@ func (s *SFU) Join(channelID, userID uint) (*UserSession, error) {
 
 		s.fanOutTrack(channelID, userID, localTrack)
 	})
+
+	for otherUserID, otherSession := range s.sessions[channelID] {
+		if otherUserID == userID {
+			continue
+		}
+
+		for _, track := range otherSession.Tracks {
+			if _, err := pc.AddTrack(track); err != nil {
+				log.Printf("Error adding existing track from user %d to user %d: %v", otherUserID, userID, err)
+			}
+		}
+	}
 
 	pc.OnICECandidate(func(c *webrtc.ICECandidate) {
 		if c == nil {
@@ -152,8 +165,12 @@ func (s *SFU) HandleSignal(userID uint, signalType string, data interface{}) {
 }
 
 func (s *SFU) fanOutTrack(channelID, sourceUserID uint, track *webrtc.TrackLocalStaticRTP) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if session, ok := s.sessions[channelID][sourceUserID]; ok {
+		session.Tracks = append(session.Tracks, track)
+	}
 
 	for targetID, session := range s.sessions[channelID] {
 		if targetID == sourceUserID {

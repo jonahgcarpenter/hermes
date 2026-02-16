@@ -49,7 +49,7 @@ export const useChat = (channelId: number, userId: number, userName: string) => 
   }, [channelId])
 
   useEffect(() => {
-    const wsUrl = `ws://localhost:8080/api/ws`
+    const wsUrl = `ws://localhost:8080/api/ws?user_id=${userId}`
     const socket = new WebSocket(wsUrl)
     socketRef.current = socket
 
