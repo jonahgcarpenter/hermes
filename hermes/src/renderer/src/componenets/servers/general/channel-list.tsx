@@ -1,8 +1,6 @@
-import React from 'react'
 import { Hash, Volume2, Plus, Settings } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-// You will need to create a useChannels hook later or pass these as props
-// For now, we assume data is passed or we mock it
+
 interface Channel {
   ID: number
   Name: string
@@ -12,9 +10,10 @@ interface Channel {
 interface ChannelListProps {
   channels: Channel[]
   serverName: string
+  onJoinVoice?: (channelId: number) => void
 }
 
-export default function ChannelList({ channels, serverName }: ChannelListProps) {
+export default function ChannelList({ channels, serverName, onJoinVoice }: ChannelListProps) {
   const { serverId, channelId } = useParams()
 
   const textChannels = channels.filter((c) => c.Type === 'text')
@@ -66,6 +65,10 @@ export default function ChannelList({ channels, serverName }: ChannelListProps) 
             {voiceChannels.map((channel) => (
               <div
                 key={channel.ID}
+                onClick={() => {
+                  console.log('Clicked voice channel:', channel.ID)
+                  onJoinVoice?.(channel.ID)
+                }}
                 className="group flex items-center gap-2 px-2 py-1.5 rounded-md text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300 cursor-pointer transition-all"
               >
                 <Volume2 size={18} className="flex-shrink-0 text-zinc-500" />

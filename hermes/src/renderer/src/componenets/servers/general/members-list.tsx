@@ -1,8 +1,5 @@
-// list all members per server
-import React from 'react'
 import { User, Crown } from 'lucide-react'
 
-// You would likely pass these as props or fetch via a hook
 interface Member {
   ID: number
   Name: string
@@ -16,9 +13,6 @@ interface MembersListProps {
 }
 
 export default function MembersList({ members }: MembersListProps) {
-  // Sort members: Owner first, then alphabetical, etc.
-  // Ideally you group them by Role. For this example, we just list them.
-
   return (
     <div className="hidden md:flex flex-col w-60 bg-zinc-900 flex-shrink-0 h-full overflow-y-auto no-scrollbar p-3">
       <div className="uppercase text-xs font-bold text-zinc-400 mb-2 px-2">

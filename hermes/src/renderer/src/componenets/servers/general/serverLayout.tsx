@@ -3,6 +3,8 @@ import { useParams, Outlet } from 'react-router-dom'
 import ChannelList from './channel-list'
 import MembersList from './members-list'
 import api from '../../../lib/api'
+import { useAuth } from '../../../context/authContext'
+import { useVoice } from '../../../hooks/useVoice'
 
 interface Channel {
   ID: number
@@ -25,8 +27,51 @@ interface ServerDetails {
 
 export default function ServerLayout() {
   const { serverId } = useParams()
+  const { user, isLoading: authLoading } = useAuth()
   const [server, setServer] = useState<ServerDetails | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [signalingSocket, setSignalingSocket] = useState<WebSocket | null>(null)
+
+  useEffect(() => {
+    if (!user) return
+
+    const ws = new WebSocket(`ws://localhost:8080/api/ws?user_id=${user.ID}`)
+
+    ws.onopen = () => {
+      console.log('WS Connected for User:', user.ID)
+      setSignalingSocket(ws)
+    }
+
+    ws.onclose = () => {
+      setSignalingSocket(null)
+    }
+
+    return () => {
+      ws.close()
+    }
+  }, [user?.ID])
+
+  const { joinVoiceChannel, handleSignal } = useVoice(signalingSocket, user?.ID || 0)
+
+  useEffect(() => {
+    if (!signalingSocket) return
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const msg = JSON.parse(event.data)
+        if (['offer', 'answer', 'ice_candidate'].includes(msg.type)) {
+          handleSignal(msg)
+        }
+      } catch (e) {
+        console.error('Failed to parse WS message', e)
+      }
+    }
+
+    signalingSocket.addEventListener('message', handleMessage)
+    return () => {
+      signalingSocket.removeEventListener('message', handleMessage)
+    }
+  }, [signalingSocket, handleSignal])
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -44,6 +89,10 @@ export default function ServerLayout() {
     fetchDetails()
   }, [serverId])
 
+  if (authLoading || !user) {
+    return <div className="flex-1 flex items-center justify-center">Loading User...</div>
+  }
+
   if (isLoading) {
     return <div className="flex-1 flex items-center justify-center text-zinc-400">Loading...</div>
   }
@@ -56,18 +105,17 @@ export default function ServerLayout() {
 
   return (
     <div className="flex h-full w-full overflow-hidden">
-      {/* Left Sidebar: Channels */}
-      <ChannelList channels={server.Channels} serverName={server.Name} />
+      <ChannelList
+        channels={server.Channels}
+        serverName={server.Name}
+        onJoinVoice={joinVoiceChannel}
+      />
 
-      {/* Main Content Area (Chat) */}
       <main className="flex-1 flex flex-col bg-zinc-700 overflow-hidden relative">
         <Outlet context={{ server }} />
       </main>
 
-      {/* Right Sidebar: Members */}
-      <MembersList
-        members={server.Members.map((m) => ({ ...m, IsOwner: m.ID === server.OwnerID }))}
-      />
+      <MembersList members={server.Members} />
     </div>
   )
 }

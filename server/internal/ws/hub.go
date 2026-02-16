@@ -2,6 +2,8 @@ package ws
 
 import (
 	"sync"
+
+	"github.com/jonahgcarpenter/hermes/server/internal/sfu"
 )
 
 type WSMessage struct {
@@ -12,6 +14,7 @@ type WSMessage struct {
 	ID         string `json:"id"`
 	Username   string `json:"username"`
 	UserAvatar string `json:"user_avatar"`
+	Data interface{} `json:"data,omitempty"`
 }
 
 type Hub struct {
@@ -21,16 +24,42 @@ type Hub struct {
 	register chan *Client
 	unregister chan *Client
 	mu sync.RWMutex
+	SFU *sfu.SFU
 }
 
 func NewHub() *Hub {
-	return &Hub{
+	h := &Hub{
 		broadcast:  make(chan WSMessage),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
 		channels:   make(map[uint]map[*Client]bool),
 	}
+
+	signalSender := func(targetUserID uint, data interface{}) {
+		h.mu.RLock()
+		defer h.mu.RUnlock()
+
+		for client := range h.clients {
+			if client.UserID == targetUserID {
+				msg := WSMessage{
+					Type: "signal",
+					Data: data,
+				}
+
+				select {
+				case client.send <- msg:
+				default:
+					close(client.send)
+					delete(h.clients, client)
+				}
+				return
+			}
+		}
+	}
+
+	h.SFU = sfu.NewSFU(signalSender)
+	return h
 }
 
 func (h *Hub) Run() {
@@ -49,10 +78,20 @@ func (h *Hub) Run() {
 				for _, subscribers := range h.channels {
 					delete(subscribers, client)
 				}
+				// TODO: You might want to notify the SFU here that a user disconnected
+				// h.SFU.Leave(client.UserID)
 			}
 			h.mu.Unlock()
 
 		case message := <-h.broadcast:
+			if message.Type == "join_voice" {
+				h.SFU.Join(message.ChannelID, message.UserID)
+				continue
+			} else if message.Type == "offer" || message.Type == "answer" || message.Type == "ice_candidate" {
+				h.SFU.HandleSignal(message.UserID, message.Type, message.Data)
+				continue
+			}
+
 			h.mu.RLock()
 			if subscribers, ok := h.channels[message.ChannelID]; ok {
 				for client := range subscribers {
@@ -72,7 +111,7 @@ func (h *Hub) Run() {
 func (h *Hub) Subscribe(client *Client, channelID uint) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	
+
 	if _, ok := h.channels[channelID]; !ok {
 		h.channels[channelID] = make(map[*Client]bool)
 	}
