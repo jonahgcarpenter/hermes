@@ -1,9 +1,23 @@
-// Users logic
+package controllers
 
-// GetCurrentUser
+import (
+	"net/http"
 
-// UpdateCurrentUser
+	"github.com/gin-gonic/gin"
+)
 
-// DeleteCurrentUser
+func GetCurrentUser(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "GetCurrentUser not implemented yet"})
+}
 
-// GetUserProfile
+func UpdateCurrentUser(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "UpdateCurrentUser not implemented yet"})
+}
+
+func DeleteCurrentUser(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "DeleteCurrentUser not implemented yet"})
+}
+
+func GetUserProfile(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "GetUserProfile not implemented yet"})
+}

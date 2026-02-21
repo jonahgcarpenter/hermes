@@ -1,9 +1,23 @@
-// Channel logic
+package controllers
 
-// ListChannels
+import (
+	"net/http"
 
-// CreateChannel
+	"github.com/gin-gonic/gin"
+)
 
-// UpdateChannel
+func ListChannels(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "ListChannels not implemented yet"})
+}
 
-// DeleteChannel
+func CreateChannel(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "CreateChannel not implemented yet"})
+}
+
+func UpdateChannel(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "UpdateChannel not implemented yet"})
+}
+
+func DeleteChannel(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "DeleteChannel not implemented yet"})
+}

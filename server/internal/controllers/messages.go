@@ -1,9 +1,23 @@
-// Message Logic
+package controllers
 
-// List Messages
+import (
+	"net/http"
 
-// Send Message
+	"github.com/gin-gonic/gin"
+)
 
-// Edit Message
+func ListMessages(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "ListMessages not implemented yet"})
+}
 
-// Delete Message
+func SendMessage(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "SendMessage not implemented yet"})
+}
+
+func EditMessage(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "EditMessage not implemented yet"})
+}
+
+func DeleteMessage(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "DeleteMessage not implemented yet"})
+}

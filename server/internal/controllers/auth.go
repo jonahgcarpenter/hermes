@@ -1,7 +1,19 @@
-// Authentication Logic
+package controllers
 
-// Register w/ 2FA
+import (
+	"net/http"
 
-// Login w/ 2FA
+	"github.com/gin-gonic/gin"
+)
 
-// Logout
+func Register(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "Register not implemented yet"})
+}
+
+func Login(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "Login not implemented yet"})
+}
+
+func Logout(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "Logout not implemented yet"})
+}
