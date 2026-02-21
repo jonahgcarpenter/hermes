@@ -12,6 +12,7 @@ import (
 
 type UpdateUserPayload struct {
 	Username    *string `json:"username" binding:"omitempty,min=3,max=32"`
+	Email       *string `json:"email" binding:"omitempty,email"`
 	DisplayName *string `json:"display_name" binding:"omitempty,min=1,max=32"`
 	AvatarURL   *string `json:"avatar_url" binding:"omitempty,url"`
 	Status      *string `json:"status" binding:"omitempty"`
@@ -56,6 +57,9 @@ func UpdateCurrentUser(c *gin.Context) {
 	updates := make(map[string]interface{})
 	if payload.Username != nil {
 		updates["username"] = *payload.Username
+	}
+	if payload.Email != nil {
+		updates["email"] = *payload.Email 
 	}
 	if payload.DisplayName != nil {
 		updates["display_name"] = *payload.DisplayName
