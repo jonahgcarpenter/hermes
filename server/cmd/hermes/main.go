@@ -52,10 +52,10 @@ func main() {
 			singleServerRoute := serverRoute.Group("/:serverID")
 			{
 				singleServerRoute.POST("/join", controllers.JoinServer)
-				singleServerRoute.GET("/", middleware.RequireMembership(), controllers.ServerDetails)
+				singleServerRoute.GET("", middleware.RequireMembership(), controllers.ServerDetails)
 				singleServerRoute.DELETE("/leave", middleware.RequireMembership(), controllers.LeaveServer)
-				singleServerRoute.PATCH("/", middleware.RequirePermission("manage_server"), controllers.UpdateServer)
-				singleServerRoute.DELETE("/", middleware.RequirePermission("manage_server"), controllers.DeleteServer)
+				singleServerRoute.PATCH("", middleware.RequirePermission("manage_server"), controllers.UpdateServer)
+				singleServerRoute.DELETE("", middleware.RequirePermission("manage_server"), controllers.DeleteServer)
 
 				// Channels
 				channelRoute := singleServerRoute.Group("/channels", middleware.RequireMembership())
