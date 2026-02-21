@@ -18,6 +18,9 @@ func main() {
 	// Hardcoding "1" is fine until scaled
 	utils.InitIDGenerator(1)
 
+	// Set JWTSecret once instead of passing it every time
+	utils.InitJWT(cfg.JWTSecret)
+
 	r := gin.Default()
 
 	api := r.Group("/api")

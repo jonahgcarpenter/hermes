@@ -29,8 +29,9 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	// Normalize Email
+	// Normalize identities
 	normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
+	normalizedUsername := strings.ToLower(strings.TrimSpace(req.Username))
 
 
 	// Pre-flight checks for Email/Username
@@ -41,7 +42,7 @@ func Register(c *gin.Context) {
 		return
 	}
 	// BUG: This prints to console if !exist, meaning spam for every new user
-	if err := database.DB.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
+	if err := database.DB.Where("username = ?", normalizedUsername).Limit(1).Find(&existingUser).Error; err == nil && existingUser.ID != 0 {
 		c.JSON(http.StatusConflict, gin.H{"error": "Username is already taken"})
 		return
 	}
@@ -59,7 +60,7 @@ func Register(c *gin.Context) {
 	// Construct the user model
 	user := models.User{
 		ID:           newID,
-		Username:     req.Username,
+		Username:     normalizedUsername,
 		Email:        normalizedEmail,
 		PasswordHash: string(hashedPassword),
 		DisplayName:  req.DisplayName,
@@ -89,8 +90,55 @@ func Register(c *gin.Context) {
 	})
 }
 
+type LoginRequest struct {
+	Identity string `json:"identity" binding:"required"` // This can be email OR username
+	Password string `json:"password" binding:"required"`
+}
+
 func Login(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"message": "Login not implemented yet"})
+	var req LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
+		return
+	}
+
+	// Normalize the identity input
+	identity := strings.ToLower(strings.TrimSpace(req.Identity))
+
+	var user models.User
+	// Query for the user where identity matches EITHER email OR username
+	if err := database.DB.Where("email = ? OR username = ?", identity, identity).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Use a generic error message for security
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	// Compare the stored hash with the provided plaintext password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+
+	// Update status to online
+	database.DB.Model(&user).Update("status", "online")
+
+	// Generate and JWT token
+	token, err := utils.GenerateToken(user.ID)
+	if err != nil {
+		log.Printf("JWT Generation error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate session"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Login successful",
+		"token": 	 token,
+		"user":    user,
+	})
 }
 
 func Logout(c *gin.Context) {
