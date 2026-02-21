@@ -1,1 +1,5 @@
 // Voice logic
+
+// JoinVoice
+
+// LeaveVoice
