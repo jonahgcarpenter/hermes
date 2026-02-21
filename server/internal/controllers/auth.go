@@ -154,6 +154,8 @@ func Login(c *gin.Context) {
 	})
 }
 
+// NOTE: For now we arent checking for a cookie
+// This will get fixed with an auth middleware
 func Logout(c *gin.Context) {
 	// Determine 'Secure' flag based on Gin's mode
 	isProduction := gin.Mode() == gin.ReleaseMode
