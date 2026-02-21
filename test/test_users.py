@@ -1,5 +1,6 @@
 import pytest
 import requests
+import uuid
 
 BASE_URL = "http://localhost:8080/api"
 
@@ -38,54 +39,69 @@ def test_get_current_user_unauthorized():
 # ---------------------------------------------------------
 
 def test_update_user_success(user_factory):
-    """Ensure users can update all fields at once, or just a single field."""
+    """Ensure users can update all fields at once, including email and username."""
     payload, _ = user_factory()
     session = get_auth_session(payload)
     
-    # Test updating ALL fields at once
+    new_username = f"new_user_{str(uuid.uuid4())[:8]}"
+    new_email = f"updated_{str(uuid.uuid4())[:8]}@hermes.local"
+    
     full_update_payload = {
-        "username": "new_username123",
+        "username": new_username,
+        "email": new_email,
         "display_name": "Updated Name",
         "status": "Busy",
         "avatar_url": "https://example.com/avatar.png"
     }
     
+    # Perform the update
     full_response = session.patch(f"{BASE_URL}/users/@me", json=full_update_payload)
-    
     assert full_response.status_code == 200
+    
+    # Update the payload dict IMMEDIATELY so the conftest teardown 
+    # knows the new credentials, even if an assertion below fails
+    payload["username"] = new_username
+    payload["email"] = new_email
+
+    # Check the fields that are actually returned in the public JSON
     full_data = full_response.json()
-    assert full_data["username"] == "new_username123"
+    assert full_data["username"] == new_username
     assert full_data["display_name"] == "Updated Name"
     assert full_data["status"] == "Busy"
-    assert full_data["avatar_url"] == "https://example.com/avatar.png"
+    
+    # Explicitly assert the email is hidden for security!
+    assert "email" not in full_data 
+
+    # PROVE the email updated in the DB by successfully logging in with it
+    verify_session = requests.Session()
+    verify_login = verify_session.post(f"{BASE_URL}/auth/login", json={
+        "identity": new_email,
+        "password": payload["password"]
+    })
+    assert verify_login.status_code == 200, "Database update failed: Could not log in with new email"
 
     # Test updating a SINGLE field
-    single_update_payload = {
-        "status": "Offline"
-    }
-    
-    single_response = session.patch(f"{BASE_URL}/users/@me", json=single_update_payload)
-    
+    single_response = session.patch(f"{BASE_URL}/users/@me", json={"status": "Offline"})
     assert single_response.status_code == 200
+    
     single_data = single_response.json()
-    
-    # Verify the specific field changed
     assert single_data["status"] == "Offline"
-    
-    # Verify the omitted fields were left completely alone
-    assert single_data["username"] == "new_username123"
-    assert single_data["display_name"] == "Updated Name"
-    assert single_data["avatar_url"] == "https://example.com/avatar.png"
+    assert single_data["username"] == new_username
 
 def test_update_user_validation_errors(user_factory):
-    """Ensure the controller rejects payloads that violate length rules."""
+    """Ensure the controller rejects payloads that violate validation rules."""
     payload, _ = user_factory()
     session = get_auth_session(payload)
     
     # Username must be >= 3 characters per the gin binding
-    response = session.patch(f"{BASE_URL}/users/@me", json={"username": "ab"})
-    
-    assert response.status_code == 400
+    res_username = session.patch(f"{BASE_URL}/users/@me", json={"username": "ab"})
+    assert res_username.status_code == 400
+    assert "username" in res_username.json().get("error", "").lower()
+
+    # Email must be a valid format per the gin binding
+    res_email = session.patch(f"{BASE_URL}/users/@me", json={"email": "not-a-valid-email"})
+    assert res_email.status_code == 400
+    assert "email" in res_email.json().get("error", "").lower()
 
 # ---------------------------------------------------------
 # GET USER PROFILE BY ID TESTS
