@@ -8,6 +8,7 @@ import (
 	"github.com/jonahgcarpenter/hermes/server/internal/controllers"
 	"github.com/jonahgcarpenter/hermes/server/internal/utils"
 	"github.com/jonahgcarpenter/hermes/server/internal/middleware"
+	"github.com/jonahgcarpenter/hermes/server/internal/websockets"
 )
 
 func main() {
@@ -21,6 +22,9 @@ func main() {
 
 	// Set JWTSecret once instead of passing it every time
 	utils.InitJWT(cfg.JWTSecret)
+
+	// Websocket start
+	go websockets.Manager.Run()
 
 	r := gin.Default()
 
@@ -72,6 +76,8 @@ func main() {
 						messageRoute.POST("/", controllers.SendMessage)
 						messageRoute.PATCH("/:messageID", controllers.EditMessage)
 						messageRoute.DELETE("/:messageID", controllers.DeleteMessage)
+						// Websocket Endpoint
+						messageRoute.GET("/ws", websockets.ServeMessageWS)
 					}
 
 					// Voice
@@ -79,6 +85,8 @@ func main() {
 					{
 						voiceRoute.POST("/join", controllers.JoinVoice)
 						voiceRoute.POST("/leave", controllers.LeaveVoice)
+						// Websocket Endpoint
+						voiceRoute.GET("/ws", websockets.ServeVoiceWS)
 					}
 				}
 			}
