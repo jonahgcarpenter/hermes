@@ -146,12 +146,34 @@ def test_get_user_profile_invalid_format(user_factory):
 # ---------------------------------------------------------
 
 def test_delete_user_success(user_factory):
-    """Ensure users can delete their own accounts."""
-    payload, _ = user_factory()
+    """Ensure users can delete their own accounts via ghost anonymization."""
+    # Setup: Create a user and log them in
+    payload, register_res = user_factory()
+    user_id = register_res.json()["id"]
     session = get_auth_session(payload)
     
-    # Delete the account
+    # Execution: Delete the account
     response = session.delete(f"{BASE_URL}/users/@me")
     
-    # Controller returns 204 No Content on successful deletion
+    # Verify the controller returns 204 No Content
     assert response.status_code == 204
+    
+    # Verification: Ensure original credentials no longer work (Lockout)
+    login_res = requests.post(f"{BASE_URL}/auth/login", json={
+        "identity": payload["email"],
+        "password": payload["password"]
+    })
+    assert login_res.status_code == 401
+    
+    # Verification: Check public profile to ensure data is "Ghosted"
+    viewer_payload, _ = user_factory()
+    viewer_session = get_auth_session(viewer_payload)
+    
+    profile_res = viewer_session.get(f"{BASE_URL}/users/{user_id}")
+    assert profile_res.status_code == 200
+    
+    data = profile_res.json()
+    assert data["display_name"] == "Deleted User"
+    assert data["username"].startswith("ghost_")
+    assert data["status"] == "Offline"
+    assert data["avatar_url"] == ""
