@@ -155,5 +155,20 @@ func Login(c *gin.Context) {
 }
 
 func Logout(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"message": "Logout not implemented yet"})
+	// Determine 'Secure' flag based on Gin's mode
+	isProduction := gin.Mode() == gin.ReleaseMode
+
+	c.SetCookie(
+		"hermes_session",
+		"",
+		-1,	// MaxAge -1 tells the browser to delete it immediately
+		"/",
+		"",
+		isProduction,
+		true,
+	)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Logged out successfully",
+	})
 }
