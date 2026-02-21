@@ -44,38 +44,42 @@ func main() {
 		}
 
 		// Servers
-		serverRoute := api.Group("/servers")
+		serverRoute := api.Group("/servers", middleware.AuthRequired())
 		{
 			serverRoute.GET("/", controllers.ListServers)
 			serverRoute.POST("/", controllers.CreateServer)
-			serverRoute.GET("/:serverID", controllers.ServerDetails)
-			serverRoute.PATCH("/:serverID", controllers.UpdateServer)
-			serverRoute.DELETE("/:serverID", controllers.DeleteServer)
-			serverRoute.POST("/:serverID/join", controllers.JoinServer)
-			serverRoute.DELETE("/:serverID/leave", controllers.LeaveServer)
 
-			// Channels
-			channelRoute := serverRoute.Group("/:serverID/channels")
+			singleServerRoute := serverRoute.Group("/:serverID")
 			{
-				channelRoute.GET("/", controllers.ListChannels)
-				channelRoute.POST("/", controllers.CreateChannel)
-				channelRoute.PATCH("/:channelID", controllers.UpdateChannel)
-				channelRoute.DELETE("/:channelID", controllers.DeleteChannel)
+				singleServerRoute.POST("/join", controllers.JoinServer)
+				singleServerRoute.GET("/", middleware.RequireMembership(), controllers.ServerDetails)
+				singleServerRoute.DELETE("/leave", middleware.RequireMembership(), controllers.LeaveServer)
+				singleServerRoute.PATCH("/", middleware.RequirePermission("manage_server"), controllers.UpdateServer)
+				singleServerRoute.DELETE("/", middleware.RequirePermission("manage_server"), controllers.DeleteServer)
 
-				// Messages
-				messageRoute := channelRoute.Group("/:channelID/messages")
+				// Channels
+				channelRoute := singleServerRoute.Group("/channels", middleware.RequireMembership())
 				{
-					messageRoute.GET("/", controllers.ListMessages)
-					messageRoute.POST("/", controllers.SendMessage)
-					messageRoute.PATCH("/:messageID", controllers.EditMessage)
-					messageRoute.DELETE("/:messageID", controllers.DeleteMessage)
-				}
+					channelRoute.GET("/", controllers.ListChannels)
+					channelRoute.POST("/", middleware.RequirePermission("manage_channels"), controllers.CreateChannel)
+					channelRoute.PATCH("/:channelID", middleware.RequirePermission("manage_channels"), controllers.UpdateChannel)
+					channelRoute.DELETE("/:channelID", middleware.RequirePermission("manage_channels"), controllers.DeleteChannel)
 
-				// Voice
-				voiceRoute := channelRoute.Group("/:channelID/voice")
-				{
-					voiceRoute.POST("/join", controllers.JoinVoice)
-					voiceRoute.POST("/leave", controllers.LeaveVoice)
+					// Messages
+					messageRoute := channelRoute.Group("/:channelID/messages")
+					{
+						messageRoute.GET("/", controllers.ListMessages)
+						messageRoute.POST("/", controllers.SendMessage)
+						messageRoute.PATCH("/:messageID", controllers.EditMessage)
+						messageRoute.DELETE("/:messageID", controllers.DeleteMessage)
+					}
+
+					// Voice
+					voiceRoute := channelRoute.Group("/:channelID/voice")
+					{
+						voiceRoute.POST("/join", controllers.JoinVoice)
+						voiceRoute.POST("/leave", controllers.LeaveVoice)
+					}
 				}
 			}
 		}
