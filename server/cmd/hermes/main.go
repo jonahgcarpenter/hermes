@@ -21,8 +21,6 @@ func main() {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	chatController := controllers.NewChatController(hub)
-
 	r := gin.Default()
 
 	corsConfig := cors.DefaultConfig()
@@ -32,30 +30,64 @@ func main() {
 
 	api := r.Group("/api")
 	{
-			api.GET("/auth/:provider", auth.BeginAuth)
-			api.GET("/auth/:provider/callback", func(c *gin.Context) {
-					auth.CompleteAuth(c, cfg)
+		// Authorization
+		authRoute := api.Group("/auth")
+		{
+			authRoute.GET("/:provider", auth.BeginAuth)
+			authRoute.POST("/logout", auth.LogoutHandler)
+			authRoute.GET("/:provider/callback", func(c *gin.Context) {
+				auth.CompleteAuth(c, cfg)
 			})
-			api.POST("/auth/refresh", func(c *gin.Context) {
-					auth.RefreshTokenHandler(c, cfg)
+			authRoute.POST("/refresh", func(c *gin.Context) {
+				auth.RefreshTokenHandler(c, cfg)
 			})
-			api.POST("/auth/logout", auth.LogoutHandler)
+		}
 
-			api.GET("/ws", chatController.HandleWS)
+		// Users
+		userRoute := api.Group("/users")
+		{
+			userRoute.GET("/@me", controllers.GetCurrentUser)
+			userRoute.PATCH("/@me", controllers.UpdateCurrentUser)
+			userRoute.DELETE("/@me", controllers.DeleteCurrentUser)
+			userRoute.GET("/:userID", controllers.GetUserProfile)
+		}
 
-			api.GET("/channels/:channelId/messages", chatController.GetMessages)
+		// Servers
+		serverRoute := api.Group("/servers")
+		{
+			serverRoute.GET("/", controllers.ListServers)
+			serverRoute.POST("/", controllers.CreateServer)
+			serverRoute.GET("/:serverID", controllers.ServerDetails)
+			serverRoute.PATCH("/:serverID", controllers.UpdateServer)
+			serverRoute.DELETE("/:serverID", controllers.DeleteServer)
+			serverRoute.POST("/:serverID/join", controllers.JoinServer)
+			serverRoute.DELETE("/:serverID/leave", controllers.LeaveServer)
 
-			protected := api.Group("/")
-			protected.Use(auth.Middleware(cfg)) 
+			// Channels
+			channelRoute := serverRoute.Group("/:serverID/channels")
 			{
-					protected.POST("/servers", controllers.CreateServer)
-					protected.GET("/servers/invite/:code", controllers.GetServerByInvite)
-					protected.POST("/servers/join", controllers.JoinServer)
-					protected.GET("/servers", controllers.ListServers)
-					protected.GET("/servers/:id", controllers.ServerDetails)
-					protected.PUT("/servers/:id", controllers.UpdateServer)
-					protected.DELETE("/servers/:id", controllers.DeleteServer)
+				channelRoute.GET("/", controllers.ListChannels)
+				channelRoute.POST("/", controllers.CreateChannel)
+				channelRoute.PATCH("/:channelID", controllers.UpdateChannel)
+				channelRoute.DELETE("/:channelID", controllers.DeleteChannel)
+
+				// Messages
+				messageRoute := channelRoute.Group("/:channelID/messages")
+				{
+					messageRoute.GET("/", controllers.ListMessages)
+					messageRoute.POST("/", controllers.SendMessage)
+					messageRoute.PATCH("/:messageID", controllers.EditMessage)
+					messageRoute.DELETE("/:messageID", controllers.DeleteMessage)
+				}
+
+				// Voice
+				voiceRoute := channelRoute.Group("/:channelID/voice")
+				{
+					voiceRoute.POST("/join", controllers.JoinVoice)
+					voiceRoute.POST("/leave", controllers.LeaveVoice)
+				}
 			}
+		}
 	}
 
 	r.Run(":" + cfg.Port)
