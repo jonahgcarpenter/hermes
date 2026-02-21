@@ -6,12 +6,17 @@ import (
 	"github.com/jonahgcarpenter/hermes/server/internal/config"
 	"github.com/jonahgcarpenter/hermes/server/internal/database"
 	"github.com/jonahgcarpenter/hermes/server/internal/controllers"
+	"github.com/jonahgcarpenter/hermes/server/internal/utils"
 )
 
 func main() {
 	cfg := config.Load()
 
 	database.Connect(cfg)
+
+	// NOTE: This number represents server ID
+	// Hardcoding "1" is fine until scaled
+	utils.InitIDGenerator(1)
 
 	r := gin.Default()
 
