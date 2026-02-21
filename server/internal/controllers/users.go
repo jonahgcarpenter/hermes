@@ -82,19 +82,28 @@ func UpdateCurrentUser(c *gin.Context) {
 }
 
 func DeleteCurrentUser(c *gin.Context) {
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userIDObj, _ := c.Get("user_id")
+	userID := userIDObj.(uint64)
+
+	idStr := strconv.FormatUint(userID, 10)
+	ghostUpdates := map[string]interface{}{
+		"username":     "ghost_" + idStr,
+		"email":        "deleted_" + idStr + "@hermes.local",
+		"display_name": "Deleted User",
+		"avatar_url":   "",
+		"status":       "Offline",
+	}
+
+	// Just update the user
+	if err := database.DB.Model(&models.User{}).Where("id = ?", userID).Updates(ghostUpdates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to ghost user"})
 		return
 	}
 
-	// Perform a soft delete
-	if err := database.DB.Delete(&models.User{}, userID).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete account"})
-		return
-	}
+	// Scramble the password so they can never log back in
+	database.DB.Model(&models.User{}).Where("id = ?", userID).Update("password_hash", "DELETED_ACCOUNT")
 
-	c.JSON(http.StatusNoContent, nil) // 204 No Content
+	c.JSON(http.StatusNoContent, nil) 
 }
 
 func GetUserProfile(c *gin.Context) {

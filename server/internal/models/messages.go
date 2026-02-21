@@ -1,6 +1,8 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type Message struct {
 	ID        uint64    `gorm:"primaryKey;autoIncrement:false" json:"id,string"`
@@ -14,5 +16,4 @@ type Message struct {
 
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
-	DeletedAt *time.Time `gorm:"index" json:"-"`
 }
