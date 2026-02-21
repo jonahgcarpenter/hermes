@@ -2,13 +2,10 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/gin-contrib/cors"
 
-	"github.com/jonahgcarpenter/hermes/server/internal/auth"
 	"github.com/jonahgcarpenter/hermes/server/internal/config"
 	"github.com/jonahgcarpenter/hermes/server/internal/database"
 	"github.com/jonahgcarpenter/hermes/server/internal/controllers"
-	"github.com/jonahgcarpenter/hermes/server/internal/ws"
 )
 
 func main() {
@@ -16,31 +13,16 @@ func main() {
 
 	database.Connect(cfg)
 
-	auth.Setup(cfg)
-
-	hub := ws.NewHub()
-	go hub.Run()
-
 	r := gin.Default()
-
-	corsConfig := cors.DefaultConfig()
-	corsConfig.AllowAllOrigins = true
-	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
-	r.Use(cors.New(corsConfig))
 
 	api := r.Group("/api")
 	{
 		// Authorization
 		authRoute := api.Group("/auth")
 		{
-			authRoute.GET("/:provider", auth.BeginAuth)
-			authRoute.POST("/logout", auth.LogoutHandler)
-			authRoute.GET("/:provider/callback", func(c *gin.Context) {
-				auth.CompleteAuth(c, cfg)
-			})
-			authRoute.POST("/refresh", func(c *gin.Context) {
-				auth.RefreshTokenHandler(c, cfg)
-			})
+			authRoute.POST("/register", controllers.Register)
+			authRoute.POST("/login", controllers.Login)
+			authRoute.POST("/logout", controllers.Logout)
 		}
 
 		// Users
