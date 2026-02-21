@@ -15,7 +15,7 @@ type User struct {
 
 	// Relationships
 	Servers  []Server  `gorm:"many2many:server_members;" json:"-"`
-	Messages []Message `json:"-"`
+	Messages []Message `gorm:"foreignKey:AuthorID" json:"-"`
 	
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
