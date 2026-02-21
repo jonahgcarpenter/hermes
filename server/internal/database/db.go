@@ -32,9 +32,15 @@ func Connect(cfg *config.Config) {
 
 	log.Println("Migrating database schema...")
 
+	err = connection.SetupJoinTable(&models.User{}, "Servers", &models.ServerMember{})
+	if err != nil {
+		log.Fatalf("Failed to setup join table: %v", err)
+	}
+
 	err = connection.AutoMigrate(
 		&models.User{},
 		&models.Server{},
+		&models.ServerMember{},
 		&models.Channel{},
 		&models.Message{},
 	)
