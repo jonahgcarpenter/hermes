@@ -11,3 +11,7 @@ out
 tmp/
 .env
 *.db
+
+# Test
+venv/
+__pycache__/
