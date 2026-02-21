@@ -126,17 +126,27 @@ func Login(c *gin.Context) {
 	// Update status to online
 	database.DB.Model(&user).Update("status", "online")
 
-	// Generate and JWT token
+	// Generate and JWT token for cookie value
 	token, err := utils.GenerateToken(user.ID)
 	if err != nil {
 		log.Printf("JWT Generation error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate session"})
 		return
 	}
+
+	// Set the auth cookie
+	c.SetCookie(
+		"hermes_session",
+		token,
+		259200, // Max Age, 72hours in seconds
+		"/",
+		"",
+		false, // Secure, set to "true" in PROD
+		true,
+	)
 	
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
-		"token": 	 token,
 		"user":    user,
 	})
 }
