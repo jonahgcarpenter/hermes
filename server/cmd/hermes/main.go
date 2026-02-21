@@ -37,10 +37,10 @@ func main() {
 		// Users
 		userRoute := api.Group("/users")
 		{
-			userRoute.GET("/@me", controllers.GetCurrentUser)
-			userRoute.PATCH("/@me", controllers.UpdateCurrentUser)
-			userRoute.DELETE("/@me", controllers.DeleteCurrentUser)
-			userRoute.GET("/:userID", controllers.GetUserProfile)
+			userRoute.GET("/@me", middleware.AuthRequired(), controllers.GetCurrentUser)
+			userRoute.PATCH("/@me", middleware.AuthRequired(), controllers.UpdateCurrentUser)
+			userRoute.DELETE("/@me", middleware.AuthRequired(), controllers.DeleteCurrentUser)
+			userRoute.GET("/:userID", middleware.AuthRequired(), controllers.GetUserProfile)
 		}
 
 		// Servers
