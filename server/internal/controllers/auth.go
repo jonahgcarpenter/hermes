@@ -134,6 +134,9 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// Determine 'Secure' flag based on Gin's mode
+	isProduction := gin.Mode() == gin.ReleaseMode
+
 	// Set the auth cookie
 	c.SetCookie(
 		"hermes_session",
@@ -141,7 +144,7 @@ func Login(c *gin.Context) {
 		259200, // Max Age, 72hours in seconds
 		"/",
 		"",
-		false, // Secure, set to "true" in PROD
+		isProduction,
 		true,
 	)
 	
