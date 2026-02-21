@@ -7,6 +7,7 @@ import (
 	"github.com/jonahgcarpenter/hermes/server/internal/database"
 	"github.com/jonahgcarpenter/hermes/server/internal/controllers"
 	"github.com/jonahgcarpenter/hermes/server/internal/utils"
+	"github.com/jonahgcarpenter/hermes/server/internal/middleware"
 )
 
 func main() {
@@ -30,7 +31,7 @@ func main() {
 		{
 			authRoute.POST("/register", controllers.Register)
 			authRoute.POST("/login", controllers.Login)
-			authRoute.POST("/logout", controllers.Logout)
+			authRoute.POST("/logout", middleware.AuthRequired(), controllers.Logout) // Requires Auth
 		}
 
 		// Users
