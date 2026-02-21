@@ -46,3 +46,34 @@ def user_factory():
         if login_res.status_code == 200:
             # Delete the user to keep the DB clean
             session.delete(f"{BASE_URL}/users/@me")
+
+@pytest.fixture
+def server_factory():
+    """
+    Creates a server dynamically for a test and automatically deletes it
+    after the test completes.
+    """
+    tracked_servers = []
+
+    def _create_server(session, name="Test Server", icon_url=None):
+        payload = {
+            "name": name,
+            "icon_url": icon_url
+        }
+        response = session.post(f"{BASE_URL}/servers/", json=payload)
+        
+        if response.status_code == 201:
+            server_data = response.json()
+            tracked_servers.append({
+                "session": session,
+                "id": server_data["id"]
+            })
+            
+        return response
+
+    yield _create_server
+
+    # --- TEARDOWN PHASE ---
+    for item in tracked_servers:
+        # Delete the server using the session that owns it
+        item["session"].delete(f"{BASE_URL}/servers/{item['id']}")
