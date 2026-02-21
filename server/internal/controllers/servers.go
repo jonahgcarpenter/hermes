@@ -87,7 +87,37 @@ func CreateServer(c *gin.Context) {
 		return
 	}
 
-	tx.Commit() // Both succeeded
+	// Create default "general" text channel
+	generalChannel := models.Channel{
+		ID:       utils.GenerateID(),
+		ServerID: server.ID,
+		Name:     "general",
+		Type:     models.ChannelTypeText,
+		Position: 0, // Appears first
+	}
+
+	if err := tx.Create(&generalChannel).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create default text channel"})
+		return
+	}
+
+	// Create default "voice" channel
+	voiceChannel := models.Channel{
+		ID:       utils.GenerateID(),
+		ServerID: server.ID,
+		Name:     "voice",
+		Type:     models.ChannelTypeVoice,
+		Position: 1, // Appears underneath the text channel
+	}
+
+	if err := tx.Create(&voiceChannel).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create default voice channel"})
+		return
+	}
+
+	tx.Commit() // Succeeded
 
 	c.JSON(http.StatusCreated, server)
 }
