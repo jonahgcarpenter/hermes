@@ -19,9 +19,12 @@ import { useServers, Server } from '../../hooks/useServers'
 import CreateServerModal from '../servers/modals/createServer'
 import EditServerModal from '../servers/modals/editServer'
 import JoinServerModal from '../servers/modals/joinServer'
+import UserSettingsModal from '../settings/userSettingsModal'
 
 export default function Sidebar(): React.JSX.Element {
   const { servers, fetchServers, deleteServer } = useServers()
+
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
 
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -176,6 +179,7 @@ export default function Sidebar(): React.JSX.Element {
               </button>
               <div className="mx-1 h-5 w-[1px] bg-zinc-700" />
               <button
+                onClick={() => setIsSettingsModalOpen(true)}
                 className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
                 title="User Settings"
               >
@@ -302,6 +306,11 @@ export default function Sidebar(): React.JSX.Element {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         server={editingServer}
+      />
+
+      <UserSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
       />
     </>
   )
