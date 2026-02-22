@@ -26,7 +26,7 @@ export const useChat = (serverId: string, channelId: string) => {
   // Grab the global socket and connection status from Context
   const { socket, isConnected } = useWebSocket()
 
-  // Fetch historical messages on load (Unchanged)
+  // Fetch historical messages on load
   useEffect(() => {
     if (!serverId || !channelId) return
 
@@ -59,7 +59,7 @@ export const useChat = (serverId: string, channelId: string) => {
 
         switch (msg.event) {
           case 'MESSAGE_CREATE':
-            setMessages((prev) => [msg.data, ...prev])
+            setMessages((prev) => [...prev, msg.data])
             break
           case 'MESSAGE_UPDATE':
             setMessages((prev) => prev.map((m) => (m.id === msg.data.id ? msg.data : m)))
