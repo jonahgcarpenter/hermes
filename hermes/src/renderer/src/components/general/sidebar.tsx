@@ -118,27 +118,27 @@ export default function Sidebar(): React.JSX.Element {
         {/* --- Server List --- */}
         <div className="flex flex-1 flex-col gap-3 w-full items-center overflow-y-auto no-scrollbar scroll-smooth">
           {servers.map((server) => (
-            <div key={server.ID} className="group relative flex items-center justify-center w-full">
+            <div key={server.id} className="group relative flex items-center justify-center w-full">
               {/* Active/Hover Pill Indicator */}
               <div className="absolute left-0 h-2 w-1 scale-0 rounded-r-full bg-white transition-all duration-200 group-hover:h-5 group-hover:scale-100" />
 
               <Link
-                to={`/servers/${server.ID}`}
-                state={{ serverName: server.Name }}
-                onMouseEnter={(e) => handleMouseEnter(e, server.Name)}
+                to={`/servers/${server.id}`}
+                state={{ serverName: server.name }}
+                onMouseEnter={(e) => handleMouseEnter(e, server.name)}
                 onMouseLeave={handleMouseLeave}
                 onContextMenu={(e) => handleContextMenu(e, server)}
                 className="cursor-pointer flex h-12 w-12 items-center justify-center overflow-hidden rounded-[24px] bg-zinc-800 transition-all duration-200 hover:rounded-[16px] hover:bg-indigo-500"
               >
-                {server.IconURL ? (
+                {server.icon_url ? (
                   <img
-                    src={server.IconURL}
-                    alt={server.Name}
+                    src={server.icon_url}
+                    alt={server.name}
                     className="h-full w-full object-cover"
                   />
                 ) : (
                   <span className="font-semibold text-zinc-300 group-hover:text-white text-sm">
-                    {server.Name.substring(0, 2).toUpperCase()}
+                    {server.name.substring(0, 2).toUpperCase()}
                   </span>
                 )}
               </Link>

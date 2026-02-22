@@ -13,14 +13,14 @@ export default function EditServerModal({ isOpen, onClose, server }: EditServerM
   const [name, setName] = useState('')
 
   useEffect(() => {
-    if (server) setName(server.Name)
+    if (server) setName(server.name)
   }, [server])
 
   if (!isOpen || !server) return null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await updateServer(server.ID, name)
+    await updateServer(server.id, name)
     onClose()
   }
 

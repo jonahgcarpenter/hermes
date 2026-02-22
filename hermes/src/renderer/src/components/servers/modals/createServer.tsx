@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, Upload, Lock } from 'lucide-react'
+import { X, Upload } from 'lucide-react'
 import { useServers } from '../../../hooks/useServers'
 
 interface CreateServerModalProps {
@@ -12,8 +12,6 @@ export default function CreateServerModal({ isOpen, onClose, onSuccess }: Create
   const { createServer, isLoading, error: hookError } = useServers()
 
   const [name, setName] = useState('')
-  const [isPrivate, setIsPrivate] = useState(false)
-  const [password, setPassword] = useState('')
   const [formError, setFormError] = useState('')
 
   if (!isOpen) return null
@@ -22,16 +20,10 @@ export default function CreateServerModal({ isOpen, onClose, onSuccess }: Create
     e.preventDefault()
     setFormError('')
 
-    const success = await createServer({
-      name,
-      is_private: isPrivate,
-      password: isPrivate ? password : undefined
-    })
+    const success = await createServer({ name })
 
     if (success) {
       setName('')
-      setPassword('')
-      setIsPrivate(false)
       onSuccess()
       onClose()
     }
@@ -75,38 +67,6 @@ export default function CreateServerModal({ isOpen, onClose, onSuccess }: Create
               required
             />
           </div>
-
-          <div className="flex items-center gap-2 mt-4">
-            <input
-              type="checkbox"
-              id="private"
-              checked={isPrivate}
-              onChange={(e) => setIsPrivate(e.target.checked)}
-              className="w-4 h-4 rounded bg-zinc-900 border-zinc-700 text-indigo-500 focus:ring-indigo-500"
-            />
-            <label
-              htmlFor="private"
-              className="text-zinc-300 text-sm select-none cursor-pointer flex items-center gap-2"
-            >
-              <Lock size={14} /> Private Server
-            </label>
-          </div>
-
-          {isPrivate && (
-            <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-              <label className="block text-xs font-bold text-zinc-400 uppercase mb-2 mt-3">
-                Server Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-zinc-900 border-none text-zinc-200 p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"
-                placeholder="Secret Password"
-                required={isPrivate}
-              />
-            </div>
-          )}
 
           {displayError && <p className="text-red-400 text-sm text-center mt-2">{displayError}</p>}
 

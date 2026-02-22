@@ -2,17 +2,15 @@ import { useState, useCallback } from 'react'
 import api from '../lib/api'
 
 export interface Server {
-  ID: number
-  Name: string
-  IconURL: string
-  OwnerID: number
-  IsPrivate?: boolean
+  id: string
+  name: string
+  icon_url: string
+  owner_id: string
 }
 
 interface CreateServerParams {
   name: string
-  is_private: boolean
-  password?: string
+  icon_url?: string
 }
 
 export function useServers() {
@@ -24,8 +22,8 @@ export function useServers() {
     setIsLoading(true)
     setError(null)
     try {
-      const res = await api.get('/servers')
-      setServers(res.data.servers || [])
+      const res = await api.get('/servers/')
+      setServers(res.data || [])
     } catch (err: any) {
       console.error('Failed to fetch servers', err)
       setError(err.response?.data?.error || 'Failed to fetch servers')
@@ -38,7 +36,7 @@ export function useServers() {
     setIsLoading(true)
     setError(null)
     try {
-      await api.post('/servers', params)
+      await api.post('/servers/', params)
       await fetchServers()
       return true
     } catch (err: any) {
@@ -50,28 +48,25 @@ export function useServers() {
     }
   }
 
-  const lookupInvite = async (code: string): Promise<Server | null> => {
+  const lookupServer = async (serverId: string): Promise<Server | null> => {
     setIsLoading(true)
     setError(null)
     try {
-      const res = await api.get(`/servers/invite/${code}`)
+      const res = await api.get(`/servers/${serverId}`)
       return res.data
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Invalid invite code')
+      setError(err.response?.data?.error || 'Server not found')
       return null
     } finally {
       setIsLoading(false)
     }
   }
 
-  const joinServer = async (inviteCode: string, password?: string): Promise<boolean> => {
+  const joinServer = async (serverId: string | number): Promise<boolean> => {
     setIsLoading(true)
     setError(null)
     try {
-      await api.post('/servers/join', {
-        invite_code: inviteCode,
-        password: password
-      })
+      await api.post(`/servers/${serverId}/join`)
       await fetchServers()
       return true
     } catch (err: any) {
@@ -84,7 +79,7 @@ export function useServers() {
 
   const updateServer = async (id: number, name: string) => {
     try {
-      await api.put(`/servers/${id}`, { name })
+      await api.patch(`/servers/${id}`, { name })
       await fetchServers()
       return true
     } catch (err) {
@@ -110,7 +105,7 @@ export function useServers() {
     error,
     fetchServers,
     createServer,
-    lookupInvite,
+    lookupServer,
     joinServer,
     updateServer,
     deleteServer

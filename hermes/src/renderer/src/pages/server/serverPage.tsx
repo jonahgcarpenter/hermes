@@ -15,7 +15,7 @@ export default function ServerPage() {
     messages: wsMessages,
     sendMessage,
     isConnected
-  } = useChat(Number(channelId), user?.ID || 0, user?.name || 'Anonymous')
+  } = useChat(Number(channelId), user?.id || 0, user?.name || 'Anonymous')
 
   const [input, setInput] = useState('')
   const [showGifModal, setShowGifModal] = useState(false)
