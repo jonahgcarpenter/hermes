@@ -92,11 +92,10 @@ func (r *Room) AddPeer(userID uint64, pc *webrtc.PeerConnection) {
 		// Give this new audio track to all OTHER users in the room
 		r.mu.RLock()
 		for peerID, peerPC := range r.Peers {
-			if peerID != userID { // Don't send the user's own voice back to them
+			if peerID != userID { 
 				if _, err := peerPC.AddTrack(localTrack); err != nil {
 					log.Println("Error adding track to peer:", err)
 				}
-				// TODO: Sending a new offer here.
 			}
 		}
 		r.mu.RUnlock()

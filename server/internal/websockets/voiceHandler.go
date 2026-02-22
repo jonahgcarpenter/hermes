@@ -29,6 +29,18 @@ func ServeVoiceWS(c *gin.Context) {
 	}
 	defer ws.Close()
 
+	// We create a channel to queue outbound messages
+	send := make(chan WsMessage, 256)
+	go func() {
+		for msg := range send {
+			if err := ws.WriteJSON(msg); err != nil {
+				log.Println("Websocket write error:", err)
+				break
+			}
+		}
+	}()
+	defer close(send)
+
 	// Initialize Pion WebRTC
 	config := webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
@@ -41,22 +53,42 @@ func ServeVoiceWS(c *gin.Context) {
 		return
 	}
 
-	// Register this user with our SFU Room Manager
-	room := sfu.Manager.GetOrCreateRoom(channelID)
-	room.AddPeer(userID, peerConnection)
+	// Handle Renegotiation
+	peerConnection.OnNegotiationNeeded(func() {
+		offer, err := peerConnection.CreateOffer(nil)
+		if err != nil {
+			log.Println("Failed to create offer:", err)
+			return
+		}
+		
+		if err = peerConnection.SetLocalDescription(offer); err != nil {
+			log.Println("Failed to set local description:", err)
+			return
+		}
 
-	defer room.RemovePeer(userID)
+		// Push the new offer down to the client via our safe write channel
+		send <- WsMessage{
+			Event: "WEBRTC_OFFER",
+			Data:  offer,
+		}
+	})
 
 	// Handle Pion generating local ICE candidates
 	peerConnection.OnICECandidate(func(c *webrtc.ICECandidate) {
 		if c == nil {
 			return
 		}
-		ws.WriteJSON(WsMessage{
+		send <- WsMessage{
 			Event: "ICE_CANDIDATE",
 			Data:  c.ToJSON(),
-		})
+		}
 	})
+
+	// Register this user with our SFU Room Manager
+	room := sfu.Manager.GetOrCreateRoom(channelID)
+	room.AddPeer(userID, peerConnection)
+
+	defer room.RemovePeer(userID)
 
 	// The WebSocket Listening Loop
 	for {
@@ -81,10 +113,18 @@ func ServeVoiceWS(c *gin.Context) {
 			peerConnection.SetLocalDescription(answer)
 
 			// Send the answer back to the browser
-			ws.WriteJSON(WsMessage{
+			send <- WsMessage{
 				Event: "WEBRTC_ANSWER",
 				Data:  answer,
-			})
+			}
+
+		case "WEBRTC_ANSWER":
+			// Server initiated an offer via OnNegotiationNeeded, and the browser replied
+			answerStr, _ := json.Marshal(incomingMsg.Data)
+			var answer webrtc.SessionDescription
+			json.Unmarshal(answerStr, &answer)
+
+			peerConnection.SetRemoteDescription(answer)
 
 		case "ICE_CANDIDATE":
 			// Browser found a networking route, feed it to Pion
