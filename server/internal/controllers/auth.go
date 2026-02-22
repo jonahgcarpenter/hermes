@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -155,6 +156,18 @@ func Login(c *gin.Context) {
 }
 
 func Logout(c *gin.Context) {
+	// Get userID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Set status to offline
+	if err := database.DB.Model(&models.User{}).Where("id = ?", userID).Update("status", "offline").Error; err != nil {
+		fmt.Printf("Failed to update status on logout: %v\n", err)
+	}
+
 	// Determine 'Secure' flag based on Gin's mode
 	isProduction := gin.Mode() == gin.ReleaseMode
 
