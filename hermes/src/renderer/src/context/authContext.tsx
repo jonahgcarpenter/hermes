@@ -1,58 +1,50 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import api from '../lib/api'
 
 interface User {
-  ID: number
+  ID: string
   Email: string
-  Name: string
-  AvatarURL: string
-  GoogleID?: string
+  Username: string
+  DisplayName: string
+  Status: string
 }
 
 interface AuthResponse {
-  access_token: string
-  refresh_token: string
+  message: string
   user: User
 }
 
 interface AuthContextType {
   user: User | null
-  accessToken: string | null
   isLoading: boolean
-  login: (provider: string) => Promise<void>
-  logout: () => void
+  login: (identity: string, password: string) => Promise<void>
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [accessToken, setAccessToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
 
   // Check for existing session on startup
   useEffect(() => {
     const storedUser = localStorage.getItem('user')
-    const storedToken = localStorage.getItem('access_token')
 
-    if (storedUser && storedToken) {
+    if (storedUser) {
       setUser(JSON.parse(storedUser))
-      setAccessToken(storedToken)
     }
     setIsLoading(false)
   }, [])
 
   // Login Function
-  const login = async (provider: string) => {
+  const login = async (identity: string, password: string) => {
     setIsLoading(true)
     try {
-      const data: AuthResponse = await window.electron.ipcRenderer.invoke('auth:start', provider)
+      const response = await api.post<AuthResponse>('/auth/login', { identity, password })
 
-      setUser(data.user)
-      setAccessToken(data.access_token)
-
-      localStorage.setItem('user', JSON.stringify(data.user))
-      localStorage.setItem('access_token', data.access_token)
-      localStorage.setItem('refresh_token', data.refresh_token)
+      setUser(response.data.user)
+      localStorage.setItem('user', JSON.stringify(response.data.user))
     } catch (error) {
       console.error('Login failed:', error)
       throw error
@@ -64,23 +56,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Logout Function
   const logout = async () => {
     try {
-      const refreshToken = localStorage.getItem('refresh_token')
-      if (refreshToken) {
-        await window.electron.ipcRenderer.invoke('auth:logout', refreshToken)
-      }
+      await api.post('/auth/logout')
     } catch (err) {
       console.error('Logout failed on server', err)
     } finally {
+      // Clear local state regardless of whether the server request succeeded
       setUser(null)
-      setAccessToken(null)
       localStorage.removeItem('user')
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
     }
   }
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   )

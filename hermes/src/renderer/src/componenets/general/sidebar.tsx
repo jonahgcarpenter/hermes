@@ -159,23 +159,24 @@ export default function Sidebar(): React.JSX.Element {
         <div className="relative mt-auto flex w-full flex-col items-center gap-1 pb-2">
           <div className="group relative flex flex-col items-center gap-2 rounded-2xl bg-zinc-900/0 p-2 transition-colors hover:bg-zinc-900">
             {/* Controls */}
-            <div className="absolute bottom-14 flex flex-col gap-2 rounded-lg bg-zinc-900 p-2 opacity-0 shadow-lg transition-all duration-200 group-hover:opacity-100 scale-95 group-hover:scale-100 border border-zinc-800">
+            <div className="absolute left-[60px] top-1/2 flex -translate-y-1/2 flex-row items-center gap-1 rounded-lg bg-zinc-900 p-2 opacity-0 shadow-lg transition-all duration-200 group-hover:opacity-100 scale-95 group-hover:scale-100 border border-zinc-800 origin-left">
               <button
                 onClick={() => setIsMuted(!isMuted)}
-                className={`cursor-pointer rounded-md p-2 hover:bg-zinc-800 ${isMuted ? 'text-red-500' : 'text-zinc-400'}`}
+                className={`cursor-pointer flex h-8 w-8 items-center justify-center rounded-md hover:bg-zinc-800 transition-colors ${isMuted ? 'text-red-500' : 'text-zinc-400'}`}
                 title="Toggle Mute"
               >
                 {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
               </button>
               <button
                 onClick={() => setIsDeafened(!isDeafened)}
-                className={`cursor-pointer rounded-md p-2 hover:bg-zinc-800 ${isDeafened ? 'text-red-500' : 'text-zinc-400'}`}
+                className={`cursor-pointer flex h-8 w-8 items-center justify-center rounded-md hover:bg-zinc-800 transition-colors ${isDeafened ? 'text-red-500' : 'text-zinc-400'}`}
                 title="Toggle Deafen"
               >
                 {isDeafened ? <HeadphoneOff size={18} /> : <Headphones size={18} />}
               </button>
+              <div className="mx-1 h-5 w-[1px] bg-zinc-700" />
               <button
-                className="cursor-pointer rounded-md p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
                 title="User Settings"
               >
                 <Settings size={18} />

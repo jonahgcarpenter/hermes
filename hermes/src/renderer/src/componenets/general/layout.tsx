@@ -16,7 +16,7 @@ export default function Layout(): React.JSX.Element {
       <div className="flex flex-1 overflow-hidden">
         {user && <Sidebar />}
 
-        <main className="flex-1 overflow-y-auto bg-zinc-950">
+        <main className="flex-1 overflow-y-auto bg-zinc-950 [&>*]:min-h-full">
           <Outlet />
         </main>
       </div>
