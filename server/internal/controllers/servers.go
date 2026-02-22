@@ -39,6 +39,31 @@ func ListServers(c *gin.Context) {
 	c.JSON(http.StatusOK, servers)
 }
 
+func ListServerMembers(c *gin.Context) {
+	// Get the Server ID from the URL parameters
+	serverID, err := parseServerID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid server ID"})
+		return
+	}
+
+	// Fetch all members where LeftAt is NULL
+	var members []models.ServerMember
+	
+	// We use Preload("User") to include the actual profile data for each member
+	// We filter by left_at IS NULL to ensure we only get active participants
+	result := database.DB.Preload("User").
+		Where("server_id = ? AND left_at IS NULL", serverID).
+		Find(&members)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch server members"})
+		return
+	}
+
+	c.JSON(http.StatusOK, members)
+}
+
 type CreateServerPayload struct {
 	Name    string `json:"name" binding:"required,min=2,max=100"`
 	IconURL string `json:"icon_url" binding:"omitempty,url"`

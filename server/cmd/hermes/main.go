@@ -66,7 +66,8 @@ func main() {
 			singleServerRoute := serverRoute.Group("/:serverID")
 			{
 				singleServerRoute.POST("/join", controllers.JoinServer)
-				singleServerRoute.GET("", middleware.RequireMembership(), controllers.ServerDetails)
+				singleServerRoute.GET("", controllers.ServerDetails)
+				singleServerRoute.GET("/members", middleware.RequireMembership(), controllers.ListServerMembers)
 				singleServerRoute.DELETE("/leave", middleware.RequireMembership(), controllers.LeaveServer)
 				singleServerRoute.PATCH("", middleware.RequirePermission("manage_server"), controllers.UpdateServer)
 				singleServerRoute.DELETE("", middleware.RequirePermission("manage_server"), controllers.DeleteServer)
