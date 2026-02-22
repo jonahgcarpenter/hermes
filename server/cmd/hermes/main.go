@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/gin-contrib/cors"
 
 	"github.com/jonahgcarpenter/hermes/server/internal/config"
 	"github.com/jonahgcarpenter/hermes/server/internal/database"
@@ -27,6 +28,12 @@ func main() {
 	go websockets.Manager.Run()
 
 	r := gin.Default()
+
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowOrigins = []string{"http://localhost:5173"}
+	corsConfig.AllowCredentials = true
+	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
+	r.Use(cors.New(corsConfig))
 
 	api := r.Group("/api")
 	{
