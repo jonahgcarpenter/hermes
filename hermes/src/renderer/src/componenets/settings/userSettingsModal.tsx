@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { X, User, Shield, Bell, Mic, Monitor, LogOut } from 'lucide-react'
+import { X, User, Shield, Bell, Mic, Monitor, LogOut, Copy, Check } from 'lucide-react'
+import { useAuth } from '../../context/authContext'
 
 interface UserSettingsModalProps {
   isOpen: boolean
@@ -14,11 +15,25 @@ const TABS = [
   { id: 'appearance', label: 'Appearance', icon: Monitor }
 ]
 
+const getStatusColor = (status?: string) => {
+  switch (status?.toLowerCase()) {
+    case 'offline':
+      return 'bg-red-500'
+    case 'away':
+      return 'bg-yellow-500'
+    default:
+      return 'bg-emerald-500'
+  }
+}
+
 export default function UserSettingsModal({
   isOpen,
   onClose
 }: UserSettingsModalProps): React.JSX.Element | null {
+  const { user, logout } = useAuth()
+
   const [activeTab, setActiveTab] = useState('account')
+  const [hasCopiedId, setHasCopiedId] = useState(false)
 
   // Close the modal when the Escape key is pressed
   useEffect(() => {
@@ -30,6 +45,18 @@ export default function UserSettingsModal({
   }, [isOpen, onClose])
 
   if (!isOpen) return null
+
+  const handleCopyId = () => {
+    if (user?.id) {
+      navigator.clipboard.writeText(user.id.toString())
+      setHasCopiedId(true)
+
+      // Reset the icon back to normal after 2 seconds
+      setTimeout(() => {
+        setHasCopiedId(false)
+      }, 2000)
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center animate-in fade-in duration-200">
@@ -68,7 +95,13 @@ export default function UserSettingsModal({
 
             <div className="my-4 h-[1px] w-full bg-zinc-800" />
 
-            <button className="cursor-pointer flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300">
+            <button
+              onClick={() => {
+                logout()
+                onClose()
+              }}
+              className="cursor-pointer flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+            >
               <LogOut size={18} />
               Log Out
             </button>
@@ -102,12 +135,31 @@ export default function UserSettingsModal({
                   <div className="h-24 bg-indigo-600 w-full" /> {/* Banner color */}
                   <div className="px-6 pb-6 relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                     <div className="flex items-end gap-4 -mt-10">
-                      <div className="h-24 w-24 rounded-full bg-zinc-800 ring-8 ring-zinc-950 flex items-center justify-center">
+                      <div className="relative h-24 w-24 rounded-full bg-zinc-800 ring-8 ring-zinc-950 flex items-center justify-center">
+                        {/* TODO: user?.avatar_url */}
                         <User size={40} className="text-zinc-500" />
+
+                        {/* Status Indicator */}
+                        <div
+                          className={`absolute bottom-1 right-1 h-6 w-6 rounded-full ring-4 ring-zinc-950 ${getStatusColor(user?.status)}`}
+                          title={user?.status}
+                        />
                       </div>
-                      <div className="mb-2">
-                        <h3 className="text-xl font-bold text-zinc-100">Username</h3>
-                        <p className="text-sm text-zinc-400">Display Name</p>
+                      <div className="mb-2 flex items-center gap-2">
+                        <h3 className="text-xl font-bold text-zinc-100">{user?.display_name}</h3>
+
+                        {/* COPY USERID BUTTON */}
+                        <button
+                          onClick={handleCopyId}
+                          className="group relative flex cursor-pointer items-center justify-center rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+                          title="Click to copy User ID"
+                        >
+                          {hasCopiedId ? (
+                            <Check size={12} className="text-emerald-500" />
+                          ) : (
+                            <Copy size={12} />
+                          )}
+                        </button>
                       </div>
                     </div>
                     <button className="cursor-pointer rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700">
@@ -118,14 +170,19 @@ export default function UserSettingsModal({
 
                 {/* Account Details */}
                 <div className="space-y-4 rounded-xl bg-zinc-950 p-6 border border-zinc-800">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
-                    Hermes Account Information
-                  </h3>
-
                   <div className="flex justify-between items-center">
                     <div>
-                      <div className="text-xs font-bold uppercase text-zinc-500">Email</div>
-                      <div className="text-zinc-200 text-sm">user@example.com</div>
+                      <div className="text-xs font-bold uppercase text-zinc-500">Display Name</div>
+                      <div className="text-zinc-200 text-sm">{user?.display_name}</div>
+                    </div>
+                    <button className="cursor-pointer rounded bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-200 hover:bg-zinc-700 transition-colors">
+                      Edit
+                    </button>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-xs font-bold uppercase text-zinc-500">Username</div>
+                      <div className="text-zinc-200 text-sm">{user?.username}</div>
                     </div>
                     <button className="cursor-pointer rounded bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-200 hover:bg-zinc-700 transition-colors">
                       Edit
