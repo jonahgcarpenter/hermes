@@ -25,6 +25,13 @@ func verifyChannel(c *gin.Context) (uint64, uint64, error) {
 	return serverID, channelID, nil
 }
 
+// Helper to fetch all UserIDs belonging to a server so we can target their WebSockets
+func getServerMemberIDs(serverID uint64) []uint64 {
+	var memberIDs []uint64
+	database.DB.Table("server_members").Where("server_id = ?", serverID).Pluck("user_id", &memberIDs)
+	return memberIDs
+}
+
 func ListMessages(c *gin.Context) {
 	_, channelID, err := verifyChannel(c)
 	if err != nil {
@@ -36,7 +43,7 @@ func ListMessages(c *gin.Context) {
 	// Preload author so the frontend gets the author's username and avatar right away,
 	if err := database.DB.Preload("Author").
 		Where("channel_id = ?", channelID).
-		Order("created_at desc").
+		Order("created_at asc").
 		Limit(50).
 		Find(&messages).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch messages"})
@@ -51,7 +58,7 @@ type SendMessagePayload struct {
 }
 
 func SendMessage(c *gin.Context) {
-	_, channelID, err := verifyChannel(c)
+	serverID, channelID, err := verifyChannel(c)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Channel not found in this server"})
 		return
@@ -84,11 +91,13 @@ func SendMessage(c *gin.Context) {
 	database.DB.Preload("Author").First(&message, message.ID)
 
 	// Broadcast the new message to the WebSocket Hub so everyone in the channel sees it instantly.
-	websockets.Manager.Broadcast <- websockets.WsMessage{
+	memberIDs := getServerMemberIDs(serverID)
+	websockets.Manager.SendToUsers(memberIDs, websockets.WsMessage{
+		TargetServerID:  serverID,
 		TargetChannelID: channelID,
 		Event:           "MESSAGE_CREATE",
 		Data:            message,
-	}
+	})
 
 	c.JSON(http.StatusCreated, message)
 }
@@ -98,7 +107,7 @@ type EditMessagePayload struct {
 }
 
 func EditMessage(c *gin.Context) {
-	_, channelID, err := verifyChannel(c)
+	serverID, channelID, err := verifyChannel(c)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Channel not found in this server"})
 		return
@@ -143,17 +152,19 @@ func EditMessage(c *gin.Context) {
 	database.DB.Preload("Author").First(&message, message.ID)
 
 	// Broadcast the UPDATE event to the WebSocket Hub.
-	websockets.Manager.Broadcast <- websockets.WsMessage{
+	memberIDs := getServerMemberIDs(serverID)
+	websockets.Manager.SendToUsers(memberIDs, websockets.WsMessage{
+		TargetServerID:  serverID,
 		TargetChannelID: channelID,
 		Event:           "MESSAGE_UPDATE",
 		Data:            message,
-	}
+	})
 
 	c.JSON(http.StatusOK, message)
 }
 
 func DeleteMessage(c *gin.Context) {
-	_, channelID, err := verifyChannel(c)
+	serverID, channelID, err := verifyChannel(c)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Channel not found in this server"})
 		return
@@ -194,11 +205,13 @@ func DeleteMessage(c *gin.Context) {
 	// Broadcast the DELETE event. 
 	deletePayload := gin.H{"id": strconv.FormatUint(messageID, 10)}
 	
-	websockets.Manager.Broadcast <- websockets.WsMessage{
+	memberIDs := getServerMemberIDs(serverID)
+	websockets.Manager.SendToUsers(memberIDs, websockets.WsMessage{
+		TargetServerID:  serverID,
 		TargetChannelID: channelID,
 		Event:           "MESSAGE_DELETE",
 		Data:            deletePayload,
-	}
+	})
 
 	c.JSON(http.StatusNoContent, nil) // 204 No Content is the standard for a successful delete
 }

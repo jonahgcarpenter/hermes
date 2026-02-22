@@ -37,6 +37,9 @@ func main() {
 
 	api := r.Group("/api")
 	{
+		// Global WebSocket Endpoint
+    api.GET("/ws", middleware.AuthRequired(), websockets.ServeGlobalWS)
+
 		// Authorization
 		authRoute := api.Group("/auth")
 		{
@@ -83,8 +86,6 @@ func main() {
 						messageRoute.POST("/", controllers.SendMessage)
 						messageRoute.PATCH("/:messageID", controllers.EditMessage)
 						messageRoute.DELETE("/:messageID", controllers.DeleteMessage)
-						// Websocket Endpoint
-						messageRoute.GET("/ws", websockets.ServeMessageWS)
 					}
 
 					// Voice
@@ -92,8 +93,6 @@ func main() {
 					{
 						voiceRoute.POST("/join", controllers.JoinVoice)
 						voiceRoute.POST("/leave", controllers.LeaveVoice)
-						// Websocket Endpoint
-						voiceRoute.GET("/ws", websockets.ServeVoiceWS)
 					}
 				}
 			}
