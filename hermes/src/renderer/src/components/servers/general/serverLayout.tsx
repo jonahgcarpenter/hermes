@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { useParams, Outlet } from 'react-router-dom'
 import ChannelList from './channel-list'
 import MembersList from './members-list'
-import api from '../../../lib/api'
+import api from '../../../lib/api' //
 import { useAuth } from '../../../context/authContext'
 import { useChannels } from '../../../hooks/useChannels'
+import { useMembers } from '../../../hooks/useMembers'
 
 interface ServerDetails {
   id: string
@@ -21,6 +22,8 @@ export default function ServerLayout() {
   const [isLoadingServer, setIsLoadingServer] = useState(true)
 
   const { channels, fetchChannels } = useChannels(serverId || '')
+
+  const { members } = useMembers(serverId)
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -62,14 +65,14 @@ export default function ServerLayout() {
         channels={channels}
         serverName={server.name}
         onJoinVoice={() => console.log('Voice refactoring coming soon!')}
-        voiceStates={{}} // Stubbing this out temporarily
+        voiceStates={{}}
       />
 
       <main className="flex-1 flex flex-col bg-zinc-700 overflow-hidden relative">
         <Outlet context={{ server }} />
       </main>
 
-      <MembersList members={[]} />
+      <MembersList members={members} />
     </div>
   )
 }

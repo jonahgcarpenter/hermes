@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import api from '../lib/api'
+import { useWebSocket } from '../context/websocketContext'
 
 export interface User {
   id: string
@@ -18,18 +19,14 @@ export interface Message {
   updated_at?: string
 }
 
-interface WsBroadcast {
-  Event: 'MESSAGE_CREATE' | 'MESSAGE_UPDATE' | 'MESSAGE_DELETE'
-  Data: any
-}
-
 export const useChat = (serverId: string, channelId: string) => {
   const [messages, setMessages] = useState<Message[]>([])
-  const [isConnected, setIsConnected] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
-  const socketRef = useRef<WebSocket | null>(null)
 
-  // Fetch historical messages on load
+  // Grab the global socket and connection status from Context
+  const { socket, isConnected } = useWebSocket()
+
+  // Fetch historical messages on load (Unchanged)
   useEffect(() => {
     if (!serverId || !channelId) return
 
@@ -48,60 +45,43 @@ export const useChat = (serverId: string, channelId: string) => {
     fetchHistory()
   }, [serverId, channelId])
 
-  // Connect to the new WebSocket route
+  // Listen to the Global WebSocket
   useEffect(() => {
-    if (!serverId || !channelId) return
+    if (!socket || !channelId) return
 
-    const wsUrl = `ws://localhost:8080/api/servers/${serverId}/channels/${channelId}/messages/ws`
-    const socket = new WebSocket(wsUrl)
-    socketRef.current = socket
-
-    socket.onopen = () => {
-      console.log('Connected to Message WS')
-      setIsConnected(true)
-    }
-
-    socket.onmessage = (event) => {
+    const handleMessage = (event: MessageEvent) => {
       try {
-        const broadcast = JSON.parse(event.data)
+        const msg = JSON.parse(event.data)
 
-        const eventType = broadcast.Event || broadcast.event
-        const data = broadcast.Data || broadcast.data
+        // Because this is a global socket, we will receive messages
+        // for ALL channels the user is in. We MUST ignore events meant for other channels.
+        if (msg.channel_id?.toString() !== channelId) return
 
-        switch (eventType) {
+        switch (msg.event) {
           case 'MESSAGE_CREATE':
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === data.id)) return prev
-              return [data, ...prev]
-            })
+            setMessages((prev) => [msg.data, ...prev])
             break
-
           case 'MESSAGE_UPDATE':
-            setMessages((prev) =>
-              prev.map((msg) => (msg.id === data.id ? { ...msg, content: data.content } : msg))
-            )
+            setMessages((prev) => prev.map((m) => (m.id === msg.data.id ? msg.data : m)))
             break
-
           case 'MESSAGE_DELETE':
-            setMessages((prev) => prev.filter((msg) => String(msg.id) !== String(data.id)))
+            setMessages((prev) => prev.filter((m) => m.id !== msg.data.id))
             break
         }
-      } catch (err) {
-        console.error('Failed to parse WS message:', err)
+      } catch (e) {
+        console.error('Failed to parse WebSocket message:', e)
       }
     }
 
-    socket.onclose = () => {
-      console.log('Disconnected from Message WS')
-      setIsConnected(false)
-    }
+    // Attach the listener
+    socket.addEventListener('message', handleMessage)
 
+    // Remove the listener when the component unmounts or channel changes
     return () => {
-      socket.close()
+      socket.removeEventListener('message', handleMessage)
     }
-  }, [serverId, channelId])
+  }, [socket, channelId])
 
-  // Send a message
   const sendMessage = useCallback(
     async (content: string) => {
       if (!serverId || !channelId || !content.trim()) return false
@@ -116,7 +96,6 @@ export const useChat = (serverId: string, channelId: string) => {
     [serverId, channelId]
   )
 
-  // Edit a message
   const editMessage = useCallback(
     async (messageId: string, content: string) => {
       try {
@@ -132,7 +111,6 @@ export const useChat = (serverId: string, channelId: string) => {
     [serverId, channelId]
   )
 
-  // Delete a message
   const deleteMessage = useCallback(
     async (messageId: string) => {
       try {

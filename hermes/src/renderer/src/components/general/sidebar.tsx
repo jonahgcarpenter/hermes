@@ -80,8 +80,8 @@ export default function Sidebar(): React.JSX.Element {
   const handleDeleteClick = async (e: React.MouseEvent) => {
     e.stopPropagation()
     if (contextMenu) {
-      if (window.confirm(`Are you sure you want to delete ${contextMenu.server.Name}?`)) {
-        await deleteServer(contextMenu.server.ID)
+      if (window.confirm(`Are you sure you want to delete ${contextMenu.server.name}?`)) {
+        await deleteServer(contextMenu.server.id)
       }
       setContextMenu(null)
     }
