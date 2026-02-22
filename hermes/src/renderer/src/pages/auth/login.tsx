@@ -2,8 +2,8 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
 import api from '../../lib/api'
-import LoginForm from '../../componenets/auth/loginForm'
-import RegisterForm from '../../componenets/auth/registerForm'
+import LoginForm from '../../components/auth/loginForm'
+import RegisterForm from '../../components/auth/registerForm'
 
 export default function Login(): React.JSX.Element {
   const { login } = useAuth()
