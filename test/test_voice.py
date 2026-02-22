@@ -73,7 +73,6 @@ def test_voice_broadcast_events(user_factory, server_factory):
     token = joiner_session.cookies.get("hermes_session")
     ws_base = BASE_URL.replace("http://", "ws://").replace("https://", "wss://")
     
-    # Updated endpoint to /messages/ws
     ws_endpoint = f"{ws_base}/servers/{server_id}/channels/{channel_id}/messages/ws"
     ws_client = websocket.create_connection(f"{ws_endpoint}?token={token}")
 
@@ -103,7 +102,7 @@ def test_voice_broadcast_events(user_factory, server_factory):
 
 def test_voice_signaling_handshake(user_factory, server_factory):
     """Verify that a user can establish a WebRTC signaling handshake."""
-    # 1. Setup
+    # Setup
     owner_payload, _ = user_factory()
     owner_session = get_auth_session(owner_payload)
     server_res = server_factory(owner_session, name="Handshake Server")
@@ -113,7 +112,7 @@ def test_voice_signaling_handshake(user_factory, server_factory):
     voice_channel = next(c for c in channels if c["type"] == "VOICE")
     channel_id = voice_channel["id"]
 
-    # 2. Open Voice WebSocket
+    # Open Voice WebSocket
     token = owner_session.cookies.get("hermes_session")
     ws_base = BASE_URL.replace("http://", "ws://").replace("https://", "wss://")
     ws_endpoint = f"{ws_base}/servers/{server_id}/channels/{channel_id}/voice/ws"
@@ -122,7 +121,7 @@ def test_voice_signaling_handshake(user_factory, server_factory):
     try:
         ws_client.settimeout(5.0)
         
-        # 3. VERIFY: Server should start gathering and sending ICE candidates immediately
+        # Server should start gathering and sending ICE candidates immediately
         found_candidate = False
         for _ in range(5):
             msg = json.loads(ws_client.recv())
@@ -131,13 +130,13 @@ def test_voice_signaling_handshake(user_factory, server_factory):
                 break
         assert found_candidate, "Should receive ICE candidates from server"
 
-        # 4. EXECUTION: Send WebRTC Offer
+        # Send WebRTC Offer
         ws_client.send(json.dumps({
             "event": "WEBRTC_OFFER",
             "data": MOCK_OFFER
         }))
 
-        # 5. VERIFICATION: Expect WebRTC Answer from the server
+        # Expect WebRTC Answer from the server
         # We might need to skip remaining ICE candidates
         received_answer = False
         for _ in range(10):
@@ -155,7 +154,7 @@ def test_voice_signaling_handshake(user_factory, server_factory):
 
 def test_voice_two_users_connection(user_factory, server_factory):
     """Verify that multiple users can connect to the same voice room and receive join events."""
-    # 1. Setup Server
+    # Setup Server
     owner_payload, _ = user_factory()
     owner_session = get_auth_session(owner_payload)
     server_res = server_factory(owner_session, name="Multi-User Voice Server")
@@ -165,7 +164,7 @@ def test_voice_two_users_connection(user_factory, server_factory):
     voice_channel = next(c for c in channels if c["type"] == "VOICE")
     channel_id = voice_channel["id"]
 
-    # 2. Setup User B (The Listener)
+    # Setup User B (The Listener)
     user_b_payload, user_b_res = user_factory()
     user_b_id = user_b_res.json()["id"]
     session_b = get_auth_session(user_b_payload)
@@ -177,7 +176,7 @@ def test_voice_two_users_connection(user_factory, server_factory):
     msg_ws_endpoint = f"{ws_base}/servers/{server_id}/channels/{channel_id}/messages/ws"
     msg_ws_b = websocket.create_connection(f"{msg_ws_endpoint}?token={token_b}")
 
-    # 3. Setup User A (The Joiner)
+    # Setup User A (The Joiner)
     user_a_payload, user_a_res = user_factory()
     user_a_id = user_a_res.json()["id"]
     session_a = get_auth_session(user_a_payload)
@@ -185,16 +184,16 @@ def test_voice_two_users_connection(user_factory, server_factory):
     token_a = session_a.cookies.get("hermes_session")
 
     try:
-        # 4. EXECUTION: User A joins voice via REST
+        # User A joins voice via REST
         session_a.post(f"{BASE_URL}/servers/{server_id}/channels/{channel_id}/voice/join")
 
-        # 5. VERIFICATION: User B receives VOICE_USER_JOINED on the message hub
+        # User B receives VOICE_USER_JOINED on the message hub
         msg_ws_b.settimeout(2.0)
         event = json.loads(msg_ws_b.recv())
         assert event["event"] == "VOICE_USER_JOINED"
         assert event["data"]["user_id"] == str(user_a_id)
 
-        # 6. SIGNALING: Both can establish private voice WS connections
+        # Both can establish private voice WS connections
         voice_ws_endpoint = f"{ws_base}/servers/{server_id}/channels/{channel_id}/voice/ws"
         ws_voice_a = websocket.create_connection(f"{voice_ws_endpoint}?token={token_a}")
         ws_voice_b = websocket.create_connection(f"{voice_ws_endpoint}?token={token_b}")
