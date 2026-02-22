@@ -28,8 +28,8 @@ export default function ChannelList({
 }: ChannelListProps) {
   const { serverId, channelId } = useParams()
 
-  const textChannels = channels.filter((c) => c.Type === 'text')
-  const voiceChannels = channels.filter((c) => c.Type === 'voice')
+  const textChannels = channels?.filter((c) => c.type?.toLowerCase() === 'text') || []
+  const voiceChannels = channels?.filter((c) => c.type?.toLowerCase() === 'voice') || []
 
   return (
     <div className="flex flex-col h-full w-60 bg-zinc-900 flex-shrink-0">
@@ -48,16 +48,16 @@ export default function ChannelList({
           <div className="space-y-[2px]">
             {textChannels.map((channel) => (
               <Link
-                key={channel.ID}
-                to={`/servers/${serverId}/channels/${channel.ID}`}
+                key={channel.id}
+                to={`/servers/${serverId}/channels/${channel.id}`}
                 className={`group flex items-center gap-2 px-2 py-1.5 rounded-md transition-all ${
-                  Number(channelId) === channel.ID
+                  Number(channelId) === channel.id
                     ? 'bg-zinc-700/60 text-white'
                     : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300'
                 }`}
               >
                 <Hash size={18} className="flex-shrink-0 text-zinc-500" />
-                <span className="truncate font-medium">{channel.Name}</span>
+                <span className="truncate font-medium">{channel.name}</span>
                 <Settings
                   size={14}
                   className="ml-auto opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-white"
@@ -75,30 +75,30 @@ export default function ChannelList({
           </div>
           <div className="space-y-[2px]">
             {voiceChannels.map((channel) => (
-              <div key={channel.ID}>
+              <div key={channel.id}>
                 <div
                   onClick={() => {
-                    console.log('Clicked voice channel:', channel.ID)
-                    onJoinVoice?.(channel.ID)
+                    console.log('Clicked voice channel:', channel.id)
+                    onJoinVoice?.(channel.id)
                   }}
                   className="group flex items-center gap-2 px-2 py-1.5 rounded-md text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300 cursor-pointer transition-all"
                 >
                   <Volume2 size={18} className="flex-shrink-0 text-zinc-500" />
-                  <span className="truncate font-medium">{channel.Name}</span>
+                  <span className="truncate font-medium">{channel.name}</span>
                 </div>
 
                 {/* Active Voice Users List */}
-                {voiceStates[channel.ID] && voiceStates[channel.ID].length > 0 && (
+                {voiceStates[channel.ID] && voiceStates[channel.id].length > 0 && (
                   <div className="ml-8 space-y-1 mb-1">
-                    {voiceStates[channel.ID].map((user) => (
+                    {voiceStates[channel.id].map((user) => (
                       <div
-                        key={user.ID}
+                        key={user.id}
                         className="flex items-center gap-2 px-2 py-1 rounded hover:bg-zinc-800 cursor-pointer"
                       >
                         <div className="w-5 h-5 rounded-full bg-zinc-600 overflow-hidden">
-                          {user.AvatarURL ? <img src={user.AvatarURL} alt={user.Name} /> : null}
+                          {user.avatar_url ? <img src={user.avatar_url} alt={user.name} /> : null}
                         </div>
-                        <span className="text-sm text-zinc-400 truncate">{user.Name}</span>
+                        <span className="text-sm text-zinc-400 truncate">{user.name}</span>
                       </div>
                     ))}
                   </div>

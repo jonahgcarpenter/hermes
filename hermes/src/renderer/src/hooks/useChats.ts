@@ -1,43 +1,43 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import api from '../lib/api'
 
-export interface WSMessage {
-  type: 'message' | 'join_channel' | 'typing'
-  channel_id: number
-  user_id: number
-  content?: string
-  username?: string
-  user_avatar?: string
-  id?: string
-  timestamp?: string
+export interface User {
+  id: string
+  username: string
+  display_name?: string
+  avatar_url?: string
 }
 
-export const useChat = (channelId: number, userId: number, userName: string) => {
-  const [messages, setMessages] = useState<WSMessage[]>([])
+export interface Message {
+  id: string
+  channel_id: string
+  author_id: string
+  content: string
+  author?: User
+  created_at?: string
+  updated_at?: string
+}
+
+interface WsBroadcast {
+  Event: 'MESSAGE_CREATE' | 'MESSAGE_UPDATE' | 'MESSAGE_DELETE'
+  Data: any
+}
+
+export const useChat = (serverId: string, channelId: string) => {
+  const [messages, setMessages] = useState<Message[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const socketRef = useRef<WebSocket | null>(null)
 
+  // Fetch historical messages on load
   useEffect(() => {
-    if (!channelId) return
+    if (!serverId || !channelId) return
 
     const fetchHistory = async () => {
       setIsLoadingHistory(true)
       try {
-        const response = await api.get(`/channels/${channelId}/messages`)
-
-        const history = response.data.map((msg: any) => ({
-          type: 'message',
-          channel_id: msg.ChannelID,
-          user_id: msg.UserID,
-          content: msg.Content,
-          username: msg.User?.Name,
-          user_avatar: msg.User?.AvatarURL,
-          id: String(msg.ID),
-          timestamp: msg.CreatedAt
-        }))
-
-        setMessages(history)
+        const response = await api.get(`/servers/${serverId}/channels/${channelId}/messages/`)
+        setMessages(response.data || [])
       } catch (error) {
         console.error('Failed to load chat history:', error)
       } finally {
@@ -46,37 +46,45 @@ export const useChat = (channelId: number, userId: number, userName: string) => 
     }
 
     fetchHistory()
-  }, [channelId])
+  }, [serverId, channelId])
 
+  // Connect to the new WebSocket route
   useEffect(() => {
-    const wsUrl = `ws://localhost:8080/api/ws?user_id=${userId}`
+    if (!serverId || !channelId) return
+
+    const wsUrl = `ws://localhost:8080/api/servers/${serverId}/channels/${channelId}/messages/ws`
     const socket = new WebSocket(wsUrl)
     socketRef.current = socket
 
     socket.onopen = () => {
-      console.log('Connected to Chat WS')
+      console.log('Connected to Message WS')
       setIsConnected(true)
-
-      socket.send(
-        JSON.stringify({
-          type: 'join_channel',
-          channel_id: channelId,
-          user_id: userId
-        })
-      )
     }
 
     socket.onmessage = (event) => {
       try {
-        const parsedMessage: WSMessage = JSON.parse(event.data)
+        const broadcast = JSON.parse(event.data)
 
-        if (parsedMessage.channel_id === channelId && parsedMessage.type === 'message') {
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === parsedMessage.id)) {
-              return prev
-            }
-            return [...prev, parsedMessage]
-          })
+        const eventType = broadcast.Event || broadcast.event
+        const data = broadcast.Data || broadcast.data
+
+        switch (eventType) {
+          case 'MESSAGE_CREATE':
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === data.id)) return prev
+              return [data, ...prev]
+            })
+            break
+
+          case 'MESSAGE_UPDATE':
+            setMessages((prev) =>
+              prev.map((msg) => (msg.id === data.id ? { ...msg, content: data.content } : msg))
+            )
+            break
+
+          case 'MESSAGE_DELETE':
+            setMessages((prev) => prev.filter((msg) => String(msg.id) !== String(data.id)))
+            break
         }
       } catch (err) {
         console.error('Failed to parse WS message:', err)
@@ -84,33 +92,66 @@ export const useChat = (channelId: number, userId: number, userName: string) => 
     }
 
     socket.onclose = () => {
-      console.log('Disconnected from Chat WS')
+      console.log('Disconnected from Message WS')
       setIsConnected(false)
     }
 
     return () => {
       socket.close()
     }
-  }, [channelId, userId])
+  }, [serverId, channelId])
 
+  // Send a message
   const sendMessage = useCallback(
-    (content: string) => {
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(
-          JSON.stringify({
-            type: 'message',
-            channel_id: channelId,
-            user_id: userId,
-            username: userName,
-            content: content
-          })
-        )
-      } else {
-        console.warn('WebSocket is not connected')
+    async (content: string) => {
+      if (!serverId || !channelId || !content.trim()) return false
+      try {
+        await api.post(`/servers/${serverId}/channels/${channelId}/messages/`, { content })
+        return true
+      } catch (err) {
+        console.error('Failed to send message:', err)
+        return false
       }
     },
-    [channelId, userId, userName]
+    [serverId, channelId]
   )
 
-  return { messages, sendMessage, isConnected, isLoadingHistory }
+  // Edit a message
+  const editMessage = useCallback(
+    async (messageId: string, content: string) => {
+      try {
+        await api.patch(`/servers/${serverId}/channels/${channelId}/messages/${messageId}`, {
+          content
+        })
+        return true
+      } catch (err) {
+        console.error('Failed to edit message:', err)
+        return false
+      }
+    },
+    [serverId, channelId]
+  )
+
+  // Delete a message
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      try {
+        await api.delete(`/servers/${serverId}/channels/${channelId}/messages/${messageId}`)
+        return true
+      } catch (err) {
+        console.error('Failed to delete message:', err)
+        return false
+      }
+    },
+    [serverId, channelId]
+  )
+
+  return {
+    messages,
+    isConnected,
+    isLoadingHistory,
+    sendMessage,
+    editMessage,
+    deleteMessage
+  }
 }
