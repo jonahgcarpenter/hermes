@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"fmt"
 
@@ -58,6 +59,10 @@ func Register(c *gin.Context) {
 	// Generate Snowflake ID
 	newID := utils.GenerateID()
 
+	// Default avatar
+	encodedName := url.QueryEscape(req.DisplayName)
+	defaultAvatar := fmt.Sprintf("https://api.dicebear.com/7.x/bottts/svg?seed=%s", encodedName)
+
 	// Construct the user model
 	user := models.User{
 		ID:           newID,
@@ -65,6 +70,7 @@ func Register(c *gin.Context) {
 		Email:        normalizedEmail,
 		PasswordHash: string(hashedPassword),
 		DisplayName:  req.DisplayName,
+		AvatarURL:    defaultAvatar,
 		Status:       "offline",
 	}
 
