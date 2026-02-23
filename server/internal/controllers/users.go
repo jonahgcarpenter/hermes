@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	
@@ -34,11 +35,13 @@ func GetCurrentUser(c *gin.Context) {
 
 func UpdateCurrentUser(c *gin.Context) {
 	// Grab UserID from middleware context
-	userID, exists := c.Get("user_id")
+	userIDObj, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
+
+	userID := userIDObj.(uint64)
 
 	var payload UpdateUserPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
@@ -53,14 +56,32 @@ func UpdateCurrentUser(c *gin.Context) {
 		return
 	}
 
-	// Update only the fields that were provided in the request
 	updates := make(map[string]interface{})
+	var count int64
+
+	// Check if username is taken by ANYONE ELSE (exclude current user ID)
 	if payload.Username != nil {
-		updates["username"] = *payload.Username
+		normalizedUsername := strings.ToLower(strings.TrimSpace(*payload.Username))
+		
+		if err := database.DB.Model(&models.User{}).Where("username = ? AND id != ?", normalizedUsername, userID).Count(&count).Error; err == nil && count > 0 {
+			c.JSON(http.StatusConflict, gin.H{"error": "Username is already taken"})
+			return
+		}
+		updates["username"] = normalizedUsername
 	}
+
+	// Check if email is taken by ANYONE ELSE (exclude current user ID)
 	if payload.Email != nil {
-		updates["email"] = *payload.Email 
+		normalizedEmail := strings.ToLower(strings.TrimSpace(*payload.Email))
+		
+		if err := database.DB.Model(&models.User{}).Where("email = ? AND id != ?", normalizedEmail, userID).Count(&count).Error; err == nil && count > 0 {
+			c.JSON(http.StatusConflict, gin.H{"error": "Email is already in use"})
+			return
+		}
+		updates["email"] = normalizedEmail 
 	}
+
+	// Update only the fields that were provided in the request
 	if payload.DisplayName != nil {
 		updates["display_name"] = *payload.DisplayName
 	}
@@ -71,12 +92,14 @@ func UpdateCurrentUser(c *gin.Context) {
 		updates["status"] = *payload.Status
 	}
 
-	if len(updates) > 0 {
+	if len(updates) > 0 { 
 		if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user"})
 			return
 		}
 	}
+
+	database.DB.First(&user, userID)
 
 	c.JSON(http.StatusOK, user)
 }
