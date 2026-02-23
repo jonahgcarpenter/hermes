@@ -6,12 +6,15 @@ import App from './App'
 
 import { AuthProvider } from './context/authContext'
 import { WebSocketProvider } from './context/websocketContext'
+import { UserProvider } from './context/userContext'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
       <WebSocketProvider>
-        <App />
+        <UserProvider>
+          <App />
+        </UserProvider>
       </WebSocketProvider>
     </AuthProvider>
   </StrictMode>

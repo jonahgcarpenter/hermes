@@ -96,6 +96,11 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type AuthUserResponse struct {
+	ID uint64 `json:"id,string"`
+	// The auth object should be very limited
+}
+
 func Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -148,10 +153,15 @@ func Login(c *gin.Context) {
 		isProduction,
 		true,
 	)
+
+	// Use the limited struct
+	authUser := AuthUserResponse{
+		ID: user.ID,
+	}
 	
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
-		"user":    user,
+		"user":    authUser,
 	})
 }
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { User, Copy, Check } from 'lucide-react'
-import { useAuth } from '../../context/authContext'
+import { useUser } from '../../context/userContext'
 
 const getStatusColor = (status?: string) => {
   switch (status?.toLowerCase()) {
@@ -14,12 +14,12 @@ const getStatusColor = (status?: string) => {
 }
 
 export default function AccountSettings(): React.JSX.Element {
-  const { user } = useAuth()
+  const { profile } = useUser()
   const [hasCopiedId, setHasCopiedId] = useState(false)
 
   const handleCopyId = () => {
-    if (user?.id) {
-      navigator.clipboard.writeText(user.id.toString())
+    if (profile?.id) {
+      navigator.clipboard.writeText(profile.id.toString())
       setHasCopiedId(true)
 
       // Reset the icon back to normal after 2 seconds
@@ -37,17 +37,20 @@ export default function AccountSettings(): React.JSX.Element {
         <div className="px-6 pb-6 relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div className="flex items-end gap-4 -mt-10">
             <div className="relative h-24 w-24 rounded-full bg-zinc-800 ring-8 ring-zinc-950 flex items-center justify-center">
-              {/* TODO: user?.avatar_url */}
-              <User size={40} className="text-zinc-500" />
+              {profile?.avatarUrl ? (
+                <img src={profile.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+              ) : (
+                <User size={40} className="text-zinc-500" />
+              )}
 
               {/* Status Indicator */}
               <div
-                className={`absolute bottom-1 right-1 h-6 w-6 rounded-full ring-4 ring-zinc-950 ${getStatusColor(user?.status)}`}
-                title={user?.status}
+                className={`absolute bottom-1 right-1 h-6 w-6 rounded-full ring-4 ring-zinc-950 ${getStatusColor(profile?.status)}`}
+                title={profile?.status}
               />
             </div>
             <div className="mb-2 flex items-center gap-2">
-              <h3 className="text-xl font-bold text-zinc-100">{user?.display_name}</h3>
+              <h3 className="text-xl font-bold text-zinc-100">{profile?.displayName}</h3>
 
               {/* COPY USERID BUTTON */}
               <button
@@ -74,7 +77,7 @@ export default function AccountSettings(): React.JSX.Element {
         <div className="flex justify-between items-center">
           <div>
             <div className="text-xs font-bold uppercase text-zinc-500">Display Name</div>
-            <div className="text-zinc-200 text-sm">{user?.display_name}</div>
+            <div className="text-zinc-200 text-sm">{profile?.displayName}</div>
           </div>
           <button className="cursor-pointer rounded bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-200 hover:bg-zinc-700 transition-colors">
             Edit
@@ -83,7 +86,7 @@ export default function AccountSettings(): React.JSX.Element {
         <div className="flex justify-between items-center">
           <div>
             <div className="text-xs font-bold uppercase text-zinc-500">Username</div>
-            <div className="text-zinc-200 text-sm">{user?.username}</div>
+            <div className="text-zinc-200 text-sm">{profile?.username}</div>
           </div>
           <button className="cursor-pointer rounded bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-200 hover:bg-zinc-700 transition-colors">
             Edit
@@ -92,7 +95,7 @@ export default function AccountSettings(): React.JSX.Element {
         <div className="flex justify-between items-center">
           <div>
             <div className="text-xs font-bold uppercase text-zinc-500">Email</div>
-            <div className="text-zinc-200 text-sm">{user?.email}</div>
+            <div className="text-zinc-200 text-sm">{profile?.email}</div>
           </div>
           <button className="cursor-pointer rounded bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-200 hover:bg-zinc-700 transition-colors">
             Edit
