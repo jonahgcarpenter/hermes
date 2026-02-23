@@ -205,7 +205,7 @@ export default function Sidebar(): React.JSX.Element {
                 <img src={profile?.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
               </div>
               <div
-                className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full ring-2 ring-zinc-950 ${getStatusColor(profile?.status)}`}
+                className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full ring-2 ring-zinc-950 ${getStatusColor(profile?.status)}`}
                 title={profile?.status}
               />
             </div>
