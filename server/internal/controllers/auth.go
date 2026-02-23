@@ -22,6 +22,7 @@ type RegisterRequest struct {
 	Email       string `json:"email" binding:"required,email"`
 	Password    string `json:"password" binding:"required,min=8"`
 	DisplayName string `json:"display_name" binding:"required,max=32"`
+	AvatarURL   string `json:"avatar_url"`
 }
 
 func Register(c *gin.Context) {
@@ -59,9 +60,12 @@ func Register(c *gin.Context) {
 	// Generate Snowflake ID
 	newID := utils.GenerateID()
 
-	// Default avatar
-	encodedName := url.QueryEscape(req.DisplayName)
-	defaultAvatar := fmt.Sprintf("https://api.dicebear.com/7.x/bottts/svg?seed=%s", encodedName)
+	// Fallback avatar
+	avatarToSave := strings.TrimSpace(req.AvatarURL)
+	if avatarToSave == "" {
+		encodedName := url.QueryEscape(req.DisplayName)
+		avatarToSave = fmt.Sprintf("https://api.dicebear.com/7.x/bottts/svg?seed=%s", encodedName)
+	}
 
 	// Construct the user model
 	user := models.User{
@@ -70,7 +74,7 @@ func Register(c *gin.Context) {
 		Email:        normalizedEmail,
 		PasswordHash: string(hashedPassword),
 		DisplayName:  req.DisplayName,
-		AvatarURL:    defaultAvatar,
+		AvatarURL:    avatarToSave,
 		Status:       "offline",
 	}
 
