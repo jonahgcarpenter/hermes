@@ -12,9 +12,6 @@ type Config struct {
 	Port string
 	DatabaseURL string
 	JWTSecret string
-	GoogleClientID string
-	GoogleClientSecret string
-	GoogleCallbackURL string
 }
 
 func Load() *Config {
@@ -24,11 +21,8 @@ func Load() *Config {
 
 	return &Config{
 		Port: getEnv("PORT", "8080"),
-		DatabaseURL: getEnv("DATABASE_URL", ""),
+		DatabaseURL: getEnv("DATABASE_URL", ""), // SQLite when not set
 		JWTSecret: getEnv("JWT_SECRET", "super-secure-secret-please-change"), // openssl rand -base64 32
-		GoogleClientID: getEnv("GOOGLE_CLIENT_ID", ""),
-		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
-		GoogleCallbackURL: getEnv("GOOGLE_CALLBACK_URL", "http://localhost:8080/api/auth/google/callback"),
 	}
 }
 

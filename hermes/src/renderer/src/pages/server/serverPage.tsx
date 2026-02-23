@@ -1,42 +1,43 @@
 import { useParams } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
-import Message from '../../componenets/servers/chat/message'
-import SendGif from '../../componenets/servers/modals/sendGif'
+import Message from '../../components/servers/chat/message'
+import SendGif from '../../components/servers/modals/sendGif'
 import { Send, Image, Users } from 'lucide-react'
 import { useChat } from '../../hooks/useChats'
-import { useAuth } from '../../context/authContext'
 
 export default function ServerPage() {
-  const { channelId } = useParams()
-  const { user } = useAuth()
+  const { serverId, channelId } = useParams()
   const [showMembers, setShowMembers] = useState(false)
 
-  const {
-    messages: wsMessages,
-    sendMessage,
-    isConnected
-  } = useChat(Number(channelId), user?.id || 0, user?.name || 'Anonymous')
+  const { messages, sendMessage, isConnected, isLoadingHistory } = useChat(
+    serverId || '',
+    channelId || ''
+  )
 
   const [input, setInput] = useState('')
   const [showGifModal, setShowGifModal] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [wsMessages])
+  }, [messages])
 
-  const handleSend = (e?: React.FormEvent) => {
+  const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault()
-    if (!input.trim()) return
-    sendMessage(input)
-    setInput('')
+    if (!input.trim() || !isConnected) return
+
+    const success = await sendMessage(input)
+    if (success) {
+      setInput('')
+    }
   }
 
-  const handleSendGifUrl = (url: string) => {
-    sendMessage(url)
+  const handleSendGifUrl = async (url: string) => {
+    await sendMessage(url)
     setShowGifModal(false)
   }
 
@@ -46,13 +47,14 @@ export default function ServerPage() {
       <div className="h-12 border-b border-[#26272D] flex items-center px-4 shadow-sm justify-between">
         <div className="flex items-center text-zinc-200 font-semibold">
           <span className="text-zinc-400 mr-2">#</span>
-          {'general'}
+          {/* You could fetch the actual channel name here using useChannels, defaulting to channelId for now */}
+          {channelId}
         </div>
         <div className="flex items-center text-xs">
           {/* Toggle Members Button */}
           <button
             onClick={() => setShowMembers(!showMembers)}
-            className={`transition-colors ${showMembers ? 'text-zinc-100' : 'text-zinc-400 hover:text-zinc-200'}`}
+            className={`transition-colors cursor-pointer ${showMembers ? 'text-zinc-100' : 'text-zinc-400 hover:text-zinc-200'}`}
           >
             <Users size={20} />
           </button>
@@ -64,22 +66,28 @@ export default function ServerPage() {
         className="flex-1 overflow-y-auto scrollbar-none flex flex-col px-4 pt-4"
         ref={scrollRef}
       >
-        {!wsMessages || wsMessages.length === 0 ? (
+        {isLoadingHistory ? (
+          <div className="flex-1 flex items-center justify-center text-zinc-500">
+            Loading messages...
+          </div>
+        ) : !messages || messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-zinc-500">
             <p>Welcome to #{channelId}!</p>
             <p className="text-sm">This is the start of the channel.</p>
           </div>
         ) : (
-          wsMessages.map((msg, i) => {
+          // Make sure to reverse if your backend sends newest first, or leave as-is if oldest first
+          messages.map((msg, i) => {
             return (
               <Message
                 key={msg.id || i}
-                id={msg.id || String(i)}
+                id={String(msg.id)}
                 content={msg.content || ''}
-                timestamp={msg.timestamp || new Date().toISOString()}
+                // Map the new timestamp field
+                timestamp={msg.created_at || new Date().toISOString()}
                 member={{
-                  name: msg.username,
-                  avatarUrl: msg.user_avatar,
+                  name: msg.author?.display_name,
+                  avatarUrl: msg.author?.avatar_url,
                   color: '#f87171'
                 }}
               />
@@ -93,7 +101,7 @@ export default function ServerPage() {
         <div className="bg-[#383A40] rounded-lg p-2 flex items-center gap-2">
           <button
             onClick={() => setShowGifModal(true)}
-            className="text-zinc-400 hover:text-zinc-200 p-2 transition-colors"
+            className="text-zinc-400 hover:text-zinc-200 p-2 transition-colors cursor-pointer"
           >
             <Image size={24} />
           </button>
@@ -112,7 +120,7 @@ export default function ServerPage() {
           <button
             onClick={() => handleSend()}
             disabled={!input.trim() || !isConnected}
-            className="text-zinc-400 hover:text-zinc-200 p-2 transition-colors disabled:opacity-50"
+            className="text-zinc-400 hover:text-zinc-200 p-2 transition-colors disabled:opacity-50 cursor-pointer"
           >
             <Send size={24} />
           </button>

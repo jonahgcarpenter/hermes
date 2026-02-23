@@ -21,7 +21,7 @@ func Connect(cfg *config.Config) {
 
 	if dsn == "" {
 		log.Println("DATABASE_URL is not set. Using local SQLite file (hermes.db) as backup.")
-		connection, err = gorm.Open(sqlite.Open("hermes.db"), &gorm.Config{})
+		connection, err = gorm.Open(sqlite.Open("./internal/database/hermes.db"), &gorm.Config{})
 	} else {
 		connection, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	}
@@ -32,9 +32,15 @@ func Connect(cfg *config.Config) {
 
 	log.Println("Migrating database schema...")
 
+	err = connection.SetupJoinTable(&models.User{}, "Servers", &models.ServerMember{})
+	if err != nil {
+		log.Fatalf("Failed to setup join table: %v", err)
+	}
+
 	err = connection.AutoMigrate(
 		&models.User{},
 		&models.Server{},
+		&models.ServerMember{},
 		&models.Channel{},
 		&models.Message{},
 	)

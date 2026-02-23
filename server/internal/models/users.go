@@ -1,15 +1,22 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"
+)
 
 type User struct {
-	gorm.Model
-	GoogleID   string `gorm:"uniqueIndex"`
-	Email      string `gorm:"uniqueIndex"`
-	Name       string
-	AvatarURL  string
-	RefreshToken string `json:"-"`
+	ID           uint64    `gorm:"primaryKey;autoIncrement:false" json:"id,string"`
+	Username     string    `gorm:"uniqueIndex;not null;size:32" json:"username"`
+	Email        string    `gorm:"uniqueIndex;not null" json:"email"`
+	PasswordHash string    `gorm:"not null" json:"-"`
+	DisplayName  string    `gorm:"not null;size:32" json:"display_name"`
+	AvatarURL    string    `json:"avatar_url"`
+	Status       string    `gorm:"default:'offline'" json:"status"`
 
 	// Relationships
-	Servers      []Server `gorm:"many2many:server_members;"`
+	Servers  []Server  `gorm:"many2many:server_members;" json:"-"`
+	Messages []Message `gorm:"foreignKey:AuthorID" json:"-"`
+	
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

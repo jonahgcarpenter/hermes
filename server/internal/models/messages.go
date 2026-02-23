@@ -1,13 +1,19 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"
+)
 
 type Message struct {
-	gorm.Model
-	Content   string    `gorm:"not null"`
-	ChannelID uint      `gorm:"not null"`
-	UserID    uint      `gorm:"not null"`
-	
-	// Relations
-	User User `gorm:"foreignKey:UserID"`
+	ID        uint64    `gorm:"primaryKey;autoIncrement:false" json:"id,string"`
+	ChannelID uint64    `gorm:"not null;index" json:"channel_id,string"`
+	AuthorID  uint64    `gorm:"not null;index" json:"author_id,string"`
+	Content   string    `gorm:"type:text;not null" json:"content"`
+
+	// Relationships
+	Author  User    `gorm:"foreignKey:AuthorID" json:"author"`
+	Channel Channel `gorm:"foreignKey:ChannelID" json:"-"`
+
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
 }
