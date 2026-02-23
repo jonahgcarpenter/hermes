@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { User, Copy, Check } from 'lucide-react'
+import { Copy, Check } from 'lucide-react'
 import { useUser } from '../../context/userContext'
 
 const getStatusColor = (status?: string) => {
@@ -37,11 +37,7 @@ export default function AccountSettings(): React.JSX.Element {
         <div className="px-6 pb-6 relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div className="flex items-end gap-4 -mt-10">
             <div className="relative h-24 w-24 rounded-full bg-zinc-800 ring-8 ring-zinc-950 flex items-center justify-center">
-              {profile?.avatarUrl ? (
-                <img src={profile.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
-              ) : (
-                <User size={40} className="text-zinc-500" />
-              )}
+              <img src={profile?.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
 
               {/* Status Indicator */}
               <div

@@ -8,7 +8,6 @@ import {
   MicOff,
   Headphones,
   HeadphoneOff,
-  User,
   Edit,
   Trash2,
   X,
@@ -20,8 +19,21 @@ import CreateServerModal from '../servers/modals/createServer'
 import EditServerModal from '../servers/modals/editServer'
 import JoinServerModal from '../servers/modals/joinServer'
 import UserSettingsModal from '../settings/userSettingsModal'
+import { useUser } from '../../context/userContext'
+
+const getStatusColor = (status?: string) => {
+  switch (status?.toLowerCase()) {
+    case 'offline':
+      return 'bg-red-500'
+    case 'away':
+      return 'bg-yellow-500'
+    default:
+      return 'bg-emerald-500'
+  }
+}
 
 export default function Sidebar(): React.JSX.Element {
+  const { profile } = useUser()
   const { servers, fetchServers, deleteServer } = useServers()
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
@@ -188,11 +200,14 @@ export default function Sidebar(): React.JSX.Element {
             </div>
 
             {/* User Avatar */}
-            <div className="relative h-10 w-10 cursor-pointer rounded-full bg-indigo-600 ring-2 ring-zinc-900 transition-transform group-hover:scale-105">
+            <div className="relative h-10 w-10 cursor-pointer rounded-full ring-2 ring-zinc-900 transition-transform group-hover:scale-105">
               <div className="flex h-full w-full items-center justify-center text-white">
-                <User size={20} />
+                <img src={profile?.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
               </div>
-              <div className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-2 ring-zinc-950" />
+              <div
+                className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full ring-2 ring-zinc-950 ${getStatusColor(profile?.status)}`}
+                title={profile?.status}
+              />
             </div>
           </div>
         </div>
