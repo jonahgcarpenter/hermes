@@ -188,6 +188,15 @@ export default function UserSettingsModal({
                       Edit
                     </button>
                   </div>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-xs font-bold uppercase text-zinc-500">Email</div>
+                      <div className="text-zinc-200 text-sm">{user?.email}</div>
+                    </div>
+                    <button className="cursor-pointer rounded bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-200 hover:bg-zinc-700 transition-colors">
+                      Edit
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
