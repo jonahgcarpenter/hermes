@@ -36,7 +36,7 @@ export default function MembersList({ members }: MembersListProps) {
               className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-zinc-800 cursor-pointer group opacity-90 hover:opacity-100 transition-opacity"
             >
               <div className="relative">
-                <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white overflow-hidden">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white overflow-hidden">
                   {member.user.avatar_url ? (
                     <img
                       src={member.user.avatar_url}
@@ -48,7 +48,7 @@ export default function MembersList({ members }: MembersListProps) {
                   )}
                 </div>
                 {/* Status Dot */}
-                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-zinc-900 rounded-full flex items-center justify-center">
+                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-zinc-900 rounded-full flex items-center justify-center">
                   <div
                     className={`w-2.5 h-2.5 rounded-full ${member.user.status === 'online' ? 'bg-green-500' : 'bg-zinc-500'}`}
                   />
