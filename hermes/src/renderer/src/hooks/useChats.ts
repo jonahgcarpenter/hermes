@@ -33,7 +33,7 @@ export const useChat = (serverId: string, channelId: string) => {
     const fetchHistory = async () => {
       setIsLoadingHistory(true)
       try {
-        const response = await api.get(`/servers/${serverId}/channels/${channelId}/messages/`)
+        const response = await api.get(`/servers/${serverId}/channels/${channelId}/messages`)
         setMessages(response.data || [])
       } catch (error) {
         console.error('Failed to load chat history:', error)
@@ -86,7 +86,7 @@ export const useChat = (serverId: string, channelId: string) => {
     async (content: string) => {
       if (!serverId || !channelId || !content.trim()) return false
       try {
-        await api.post(`/servers/${serverId}/channels/${channelId}/messages/`, { content })
+        await api.post(`/servers/${serverId}/channels/${channelId}/messages`, { content })
         return true
       } catch (err) {
         console.error('Failed to send message:', err)

@@ -30,7 +30,7 @@ export function useChannels(serverId: string) {
     setIsLoading(true)
     setError(null)
     try {
-      const res = await api.get(`/servers/${serverId}/channels/`)
+      const res = await api.get(`/servers/${serverId}/channels`)
       setChannels(res.data || [])
     } catch (err: any) {
       console.error('Failed to fetch channels', err)
@@ -44,7 +44,7 @@ export function useChannels(serverId: string) {
     setIsLoading(true)
     setError(null)
     try {
-      await api.post(`/servers/${serverId}/channels/`, params)
+      await api.post(`/servers/${serverId}/channels`, params)
       await fetchChannels()
       return true
     } catch (err: any) {

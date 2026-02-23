@@ -22,7 +22,7 @@ export function useServers() {
     setIsLoading(true)
     setError(null)
     try {
-      const res = await api.get('/servers/')
+      const res = await api.get('/servers')
       setServers(res.data || [])
     } catch (err: any) {
       console.error('Failed to fetch servers', err)
@@ -36,7 +36,7 @@ export function useServers() {
     setIsLoading(true)
     setError(null)
     try {
-      await api.post('/servers/', params)
+      await api.post('/servers', params)
       await fetchServers()
       return true
     } catch (err: any) {
