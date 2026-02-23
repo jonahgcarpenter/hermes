@@ -60,8 +60,8 @@ func main() {
 		// Servers
 		serverRoute := api.Group("/servers", middleware.AuthRequired())
 		{
-			serverRoute.GET("/", controllers.ListServers)
-			serverRoute.POST("/", controllers.CreateServer)
+			serverRoute.GET("", controllers.ListServers)
+			serverRoute.POST("", controllers.CreateServer)
 
 			singleServerRoute := serverRoute.Group("/:serverID")
 			{
@@ -75,16 +75,16 @@ func main() {
 				// Channels
 				channelRoute := singleServerRoute.Group("/channels", middleware.RequireMembership())
 				{
-					channelRoute.GET("/", controllers.ListChannels)
-					channelRoute.POST("/", middleware.RequirePermission("manage_channels"), controllers.CreateChannel)
+					channelRoute.GET("", controllers.ListChannels)
+					channelRoute.POST("", middleware.RequirePermission("manage_channels"), controllers.CreateChannel)
 					channelRoute.PATCH("/:channelID", middleware.RequirePermission("manage_channels"), controllers.UpdateChannel)
 					channelRoute.DELETE("/:channelID", middleware.RequirePermission("manage_channels"), controllers.DeleteChannel)
 
 					// Messages
 					messageRoute := channelRoute.Group("/:channelID/messages")
 					{
-						messageRoute.GET("/", controllers.ListMessages)
-						messageRoute.POST("/", controllers.SendMessage)
+						messageRoute.GET("", controllers.ListMessages)
+						messageRoute.POST("", controllers.SendMessage)
 						messageRoute.PATCH("/:messageID", controllers.EditMessage)
 						messageRoute.DELETE("/:messageID", controllers.DeleteMessage)
 					}
