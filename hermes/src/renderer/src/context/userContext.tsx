@@ -53,13 +53,18 @@ const mapToSnakeCase = (updates: UpdateProfilePayload): Record<string, any> => {
 }
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // Fetch the source of truth from /@me
   const fetchProfile = useCallback(async () => {
+    if (!user) {
+      setIsLoading(false)
+      return
+    }
+
     try {
       setIsLoading(true)
       const res = await api.get('/users/@me')
@@ -75,7 +80,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }, [logout])
+  }, [logout, user])
 
   // Optimistic Updates for PATCH /@me
   const updateProfile = async (updates: UpdateProfilePayload) => {

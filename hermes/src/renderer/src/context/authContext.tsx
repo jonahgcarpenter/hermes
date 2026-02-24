@@ -56,7 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Logout Function
   const logout = async () => {
     try {
-      await api.post('/auth/logout')
+      if (user || localStorage.getItem('user')) {
+        await api.post('/auth/logout')
+      }
     } catch (err) {
       console.error('Logout failed on server', err)
     } finally {
