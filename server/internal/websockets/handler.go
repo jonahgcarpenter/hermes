@@ -3,6 +3,7 @@ package websockets
 import (
 	"log"
 	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
@@ -11,8 +12,13 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
+// ServeGlobalWS upgrades the HTTP request to a WebSocket and initializes the client
 func ServeGlobalWS(c *gin.Context) {
-	userIDObj, _ := c.Get("user_id")
+	userIDObj, exists := c.Get("user_id")
+	if !exists {
+		log.Println("Unauthorized: User ID not found in context")
+		return
+	}
 	userID := userIDObj.(uint64)
 
 	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -24,26 +30,13 @@ func ServeGlobalWS(c *gin.Context) {
 	client := &Client{
 		Conn:   ws,
 		UserID: userID,
+		Send:   make(chan WsMessage, 256),
 	}
 
-	Manager.Register <- client
-	defer func() { Manager.Unregister <- client }()
+	// Register with the global Hub
+	Manager.Register <- client //
 
-	// Central Listening Loop
-	for {
-		var incomingMsg WsMessage
-		err := ws.ReadJSON(&incomingMsg)
-		if err != nil {
-			break // Disconnected
-		}
-
-		// Route incoming messages based on the Event type
-		switch incomingMsg.Event {
-		case "WEBRTC_OFFER", "WEBRTC_ANSWER", "ICE_CANDIDATE":
-            // TODO: Route to your Pion SFU logic 
-            // HandleVoiceSignaling(userID, incomingMsg)
-        case "TYPING_START":
-            // Handle typing indicators
-		}
-	}
+	// Start the read and write pumps in independent background goroutines
+	go client.writePump()
+	go client.readPump() 
 }

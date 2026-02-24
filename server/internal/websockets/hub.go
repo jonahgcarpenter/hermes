@@ -1,15 +1,5 @@
 package websockets
 
-import (
-	"github.com/gorilla/websocket"
-)
-
-type Client struct {
-	Conn      *websocket.Conn
-	UserID    uint64
-	Send   chan WsMessage
-}
-
 type WsMessage struct {
 	TargetServerID  uint64      `json:"server_id,omitempty"`
 	TargetChannelID uint64      `json:"channel_id,omitempty"` 
