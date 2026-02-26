@@ -4,17 +4,23 @@ import Message from '../../components/servers/chat/message'
 import SendGif from '../../components/servers/modals/sendGif'
 import { Send, Image, Users } from 'lucide-react'
 import { useChat } from '../../hooks/useChats'
+import { useUser } from '../../context/userContext'
+import { useWebSocket } from '../../context/websocketContext'
 
 export default function ServerPage() {
   const { serverId, channelId } = useParams()
   const [showMembers, setShowMembers] = useState(false)
+  const { profile } = useUser()
+  const { socket } = useWebSocket()
 
-  const { messages, sendMessage, isConnected, isLoadingHistory } = useChat(
+  const { messages, sendMessage, isConnected, isLoadingHistory, typingUsers } = useChat(
     serverId || '',
     channelId || ''
   )
 
   const [input, setInput] = useState('')
+  const lastTypingTime = useRef<number>(0)
+
   const [showGifModal, setShowGifModal] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -26,6 +32,29 @@ export default function ServerPage() {
     }
   }, [messages])
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value)
+
+    if (!isConnected || !socket || !profile) return
+
+    const now = Date.now()
+    // Only send an event every 3 seconds to save bandwidth
+    if (now - lastTypingTime.current > 3000 && e.target.value.trim().length > 0) {
+      socket.send(
+        JSON.stringify({
+          server_id: serverId,
+          channel_id: channelId,
+          event: 'TYPING_START',
+          data: {
+            user_id: profile.id.toString(),
+            username: profile.displayName // Send our own name
+          }
+        })
+      )
+      lastTypingTime.current = now
+    }
+  }
+
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault()
     if (!input.trim() || !isConnected) return
@@ -33,6 +62,7 @@ export default function ServerPage() {
     const success = await sendMessage(input)
     if (success) {
       setInput('')
+      lastTypingTime.current = 0
     }
   }
 
@@ -41,12 +71,20 @@ export default function ServerPage() {
     setShowGifModal(false)
   }
 
+  const typingNames = Object.values(typingUsers)
+  let typingText = ''
+  if (typingNames.length === 1) typingText = `${typingNames[0]} is typing...`
+  else if (typingNames.length === 2)
+    typingText = `${typingNames[0]} and ${typingNames[1]} are typing...`
+  else if (typingNames.length > 2) typingText = 'Several people are typing...'
+
   return (
     <div className="flex flex-col h-full bg-[#313338]">
       {/* Header */}
       <div className="h-12 border-b border-[#26272D] flex items-center px-4 shadow-sm justify-between">
         <div className="flex items-center text-zinc-200 font-semibold">
           <span className="text-zinc-400 mr-2">#</span>
+          {/* TODO: */}
           {/* You could fetch the actual channel name here using useChannels, defaulting to channelId for now */}
           {channelId}
         </div>
@@ -63,7 +101,7 @@ export default function ServerPage() {
 
       {/* Chat Area */}
       <div
-        className="flex-1 overflow-y-auto scrollbar-none flex flex-col px-4 pt-4"
+        className="flex-1 overflow-y-auto scrollbar-none flex flex-col px-4 pb-4"
         ref={scrollRef}
       >
         {isLoadingHistory ? (
@@ -76,7 +114,6 @@ export default function ServerPage() {
             <p className="text-sm">This is the start of the channel.</p>
           </div>
         ) : (
-          // Make sure to reverse if your backend sends newest first, or leave as-is if oldest first
           messages.map((msg, i) => {
             return (
               <Message
@@ -97,7 +134,14 @@ export default function ServerPage() {
       </div>
 
       {/* Input Area */}
-      <div className="px-4 pb-6 pt-2">
+      <div className="px-4 pb-6 pt-2 relative">
+        {/* Typing Indicator */}
+        <div className="absolute -top-4 left-4 h-4 flex items-center">
+          {typingText && (
+            <span className="text-xs text-zinc-400 font-medium animate-pulse">{typingText}</span>
+          )}
+        </div>
+
         <div className="bg-[#383A40] rounded-lg p-2 flex items-center gap-2">
           <button
             onClick={() => setShowGifModal(true)}
@@ -110,7 +154,7 @@ export default function ServerPage() {
             <input
               type="text"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               placeholder={`Message #${channelId}`}
               className="w-full bg-transparent text-zinc-200 placeholder-zinc-400 outline-none"
               disabled={!isConnected}

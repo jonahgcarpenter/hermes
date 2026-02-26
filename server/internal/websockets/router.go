@@ -10,8 +10,8 @@ func RouteMessage(c *Client, msg WsMessage) {
 		log.Printf("Routing WebRTC event: %s for user: %d", msg.Event, c.UserID)
 		
 	case "TYPING_START": //
-		// TODO: Route to chat logic
-		log.Printf("Routing TYPING_START for user: %d", c.UserID)
+		// We trust the client's payload and just fan it out to the room.
+		Manager.Broadcast <- msg
 		
 	default:
 		log.Printf("Unknown event type received: %s", msg.Event)

@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import api from '../lib/api'
 import { useWebSocket } from '../context/websocketContext'
+import { useUser } from '../context/userContext'
 
 export interface User {
   id: string
@@ -23,8 +24,15 @@ export const useChat = (serverId: string, channelId: string) => {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
 
+  // Typing indicators
+  const [typingUsers, setTypingUsers] = useState<Record<string, string>>({})
+  const typingTimeouts = useRef<Record<string, NodeJS.Timeout>>({})
+
   // Grab the global socket and connection status from Context
   const { socket, isConnected } = useWebSocket()
+
+  const { profile } = useUser()
+  const currentUserId = profile?.id?.toString()
 
   // Fetch historical messages on load
   useEffect(() => {
@@ -58,9 +66,46 @@ export const useChat = (serverId: string, channelId: string) => {
         if (msg.channel_id?.toString() !== channelId) return
 
         switch (msg.event) {
+          case 'TYPING_START':
+            const { user_id, username } = msg.data
+            // Don't show "You are typing..." to yourself
+            if (user_id === currentUserId) return
+
+            // Add them to the typing map
+            setTypingUsers((prev) => ({ ...prev, [user_id]: username }))
+
+            // Clear any existing timeout for this user
+            if (typingTimeouts.current[user_id]) {
+              clearTimeout(typingTimeouts.current[user_id])
+            }
+
+            // Set a new 5-second timeout to remove them
+            typingTimeouts.current[user_id] = setTimeout(() => {
+              setTypingUsers((prev) => {
+                const newState = { ...prev }
+                delete newState[user_id]
+                return newState
+              })
+            }, 5000)
+            break
           case 'MESSAGE_CREATE':
+            // Implicitly clear the typing indicator for the message author
+            const authorId = msg.data.author_id?.toString()
+            if (authorId) {
+              setTypingUsers((prev) => {
+                if (!prev[authorId]) return prev // Skip if they weren't marked as typing
+                const newState = { ...prev }
+                delete newState[authorId]
+                return newState
+              })
+
+              if (typingTimeouts.current[authorId]) {
+                clearTimeout(typingTimeouts.current[authorId])
+              }
+            }
+
+            // Add the message to the chat UI
             setMessages((prev) => {
-              // If we already have this message ID, don't add it again.
               if (prev.some((m) => m.id === msg.data.id)) return prev
               return [...prev, msg.data]
             })
@@ -84,7 +129,7 @@ export const useChat = (serverId: string, channelId: string) => {
     return () => {
       socket.removeEventListener('message', handleMessage)
     }
-  }, [socket, channelId])
+  }, [socket, channelId, currentUserId])
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -134,6 +179,7 @@ export const useChat = (serverId: string, channelId: string) => {
     isLoadingHistory,
     sendMessage,
     editMessage,
-    deleteMessage
+    deleteMessage,
+    typingUsers
   }
 }
