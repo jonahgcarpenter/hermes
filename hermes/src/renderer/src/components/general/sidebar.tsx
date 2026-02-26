@@ -24,7 +24,7 @@ import { useUser } from '../../context/userContext'
 const getStatusColor = (status?: string) => {
   switch (status?.toLowerCase()) {
     case 'offline':
-      return 'bg-red-500'
+      return 'bg-zinc-500'
     case 'away':
       return 'bg-yellow-500'
     default:

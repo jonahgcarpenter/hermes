@@ -1,5 +1,18 @@
 package websockets
 
+import (
+	"fmt"
+	"time"
+
+	"github.com/jonahgcarpenter/hermes/server/internal/database"
+	"github.com/jonahgcarpenter/hermes/server/internal/models"
+)
+
+type OfflineRequest struct {
+	UserID    uint64
+	ServerIDs []uint64
+}
+
 type WsMessage struct {
 	TargetServerID  uint64      `json:"server_id,string,omitempty"`
 	TargetChannelID uint64      `json:"channel_id,string,omitempty"` 
@@ -20,6 +33,8 @@ type Hub struct {
 	Unregister chan *Client
 	JoinRoom    chan RoomUpdate
 	LeaveRoom   chan RoomUpdate
+	OfflineTimers   map[uint64]*time.Timer
+	FinalizeOffline chan OfflineRequest
 }
 
 var Manager = Hub{
@@ -30,6 +45,8 @@ var Manager = Hub{
 	Unregister: make(chan *Client),
 	JoinRoom:    make(chan RoomUpdate),
 	LeaveRoom:   make(chan RoomUpdate),
+	OfflineTimers:   make(map[uint64]*time.Timer),
+	FinalizeOffline: make(chan OfflineRequest),
 }
 
 // Run starts an infinite loop that listens for activity on the Hub's channels.
@@ -40,12 +57,44 @@ func (h *Hub) Run() {
 
 		// Client Connected
 		case client := <-h.Register:
+			// Cancel pending offline status
+			if timer, exists := h.OfflineTimers[client.UserID]; exists {
+				timer.Stop()
+				delete(h.OfflineTimers, client.UserID)
+			}
+
+			// Check if this is their first active connection before we add them
+			isFirstConnection := len(h.Clients[client.UserID]) == 0
+
 			// Register User Connection
 			if h.Clients[client.UserID] == nil {
 				h.Clients[client.UserID] = make(map[*Client]bool)
 			}
 			h.Clients[client.UserID][client] = true
             
+			// If this is their FIRST connection, broadcast online
+			if isFirstConnection {
+				// Update database
+				database.DB.Model(&models.User{}).Where("id = ?", client.UserID).Update("status", "online")
+
+				// Broadcast to all their servers using their hydrated ServerIDs array
+				for _, serverID := range client.ServerIDs {
+					onlineMsg := WsMessage{
+						TargetServerID: serverID,
+						Event:          "PRESENCE_UPDATE",
+						Data: map[string]interface{}{
+							"user_id": fmt.Sprintf("%d", client.UserID),
+							"status":  "online",
+						},
+					}
+					
+					// Fire in a goroutine to prevent deadlocking the Hub's Run() loop
+					go func(msg WsMessage) {
+						h.Broadcast <- msg
+					}(onlineMsg)
+				}
+			}
+
 			// Register Server Subscriptions (The Fan-Out Map)
 			for _, serverID := range client.ServerIDs {
 				if h.ServerRooms[serverID] == nil {
@@ -59,8 +108,42 @@ func (h *Hub) Run() {
 			if _, ok := h.Clients[client.UserID][client]; ok {
 				// Clean up User Connections
 				delete(h.Clients[client.UserID], client)
+				
+				// If this was their LAST active connection
 				if len(h.Clients[client.UserID]) == 0 {
 					delete(h.Clients, client.UserID)
+
+					// Instantly set them to "away" in the database
+					database.DB.Model(&models.User{}).Where("id = ?", client.UserID).Update("status", "away")
+
+					// Instantly broadcast the "away" status to the UI
+					for _, serverID := range client.ServerIDs {
+						awayMsg := WsMessage{
+							TargetServerID: serverID,
+							Event:          "PRESENCE_UPDATE",
+							Data: map[string]interface{}{
+								"user_id": fmt.Sprintf("%d", client.UserID),
+								"status":  "away",
+							},
+						}
+						go func(msg WsMessage) {
+							h.Broadcast <- msg
+						}(awayMsg)
+					}
+
+					// Safely copy the slice so it isn't garbage collected
+					userID := client.UserID
+					serverIDs := append([]uint64(nil), client.ServerIDs...)
+
+					// Start a 60-second timer
+					timer := time.AfterFunc(60*time.Second, func() {
+						// Send the request back to the thread-safe Hub loop
+						h.FinalizeOffline <- OfflineRequest{
+							UserID:    userID,
+							ServerIDs: serverIDs,
+						}
+					})
+					h.OfflineTimers[userID] = timer
 				}
                 
 				// Clean up Server Rooms
@@ -75,6 +158,31 @@ func (h *Hub) Run() {
 				}
 				client.Conn.Close()
 			}
+
+		// Execute Delayed Offline
+		case req := <-h.FinalizeOffline:
+			// Double-check they didn't magically reconnect exactly as the timer fired
+			if len(h.Clients[req.UserID]) == 0 {
+				
+				database.DB.Model(&models.User{}).Where("id = ?", req.UserID).Update("status", "offline")
+
+				for _, serverID := range req.ServerIDs {
+					offlineMsg := WsMessage{
+						TargetServerID: serverID,
+						Event:          "PRESENCE_UPDATE",
+						Data: map[string]interface{}{
+							"user_id": fmt.Sprintf("%d", req.UserID),
+							"status":  "offline",
+						},
+					}
+					// Use a goroutine to send back into h.Broadcast to avoid deadlocks
+					go func(msg WsMessage) {
+						h.Broadcast <- msg
+					}(offlineMsg)
+				}
+			}
+			// Clean up the timer reference
+			delete(h.OfflineTimers, req.UserID)
 
 		// Broadcast triggered by HTTP Controllers or Internal Events
 		case msg := <-h.Broadcast:

@@ -18,6 +18,17 @@ interface MembersListProps {
   members: Member[]
 }
 
+const getStatusColor = (status?: string) => {
+  switch (status?.toLowerCase()) {
+    case 'offline':
+      return 'bg-zinc-500'
+    case 'away':
+      return 'bg-yellow-500'
+    default:
+      return 'bg-emerald-500'
+  }
+}
+
 export default function MembersList({ members }: MembersListProps) {
   return (
     <div className="hidden md:flex flex-col w-60 bg-zinc-900 flex-shrink-0 h-full overflow-y-auto no-scrollbar p-3">
@@ -50,7 +61,7 @@ export default function MembersList({ members }: MembersListProps) {
                 {/* Status Dot */}
                 <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-zinc-900 rounded-full flex items-center justify-center">
                   <div
-                    className={`w-2.5 h-2.5 rounded-full ${member.user.status === 'online' ? 'bg-green-500' : 'bg-zinc-500'}`}
+                    className={`w-2.5 h-2.5 rounded-full ${getStatusColor(member.user.status)}`}
                   />
                 </div>
               </div>
