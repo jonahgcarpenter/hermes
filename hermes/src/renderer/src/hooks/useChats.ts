@@ -59,7 +59,11 @@ export const useChat = (serverId: string, channelId: string) => {
 
         switch (msg.event) {
           case 'MESSAGE_CREATE':
-            setMessages((prev) => [...prev, msg.data])
+            setMessages((prev) => {
+              // If we already have this message ID, don't add it again.
+              if (prev.some((m) => m.id === msg.data.id)) return prev
+              return [...prev, msg.data]
+            })
             break
           case 'MESSAGE_UPDATE':
             setMessages((prev) => prev.map((m) => (m.id === msg.data.id ? msg.data : m)))

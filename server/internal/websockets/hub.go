@@ -1,8 +1,8 @@
 package websockets
 
 type WsMessage struct {
-	TargetServerID  uint64      `json:"server_id,omitempty"`
-	TargetChannelID uint64      `json:"channel_id,omitempty"` 
+	TargetServerID  uint64      `json:"server_id,string,omitempty"`
+	TargetChannelID uint64      `json:"channel_id,string,omitempty"` 
 	Event           string      `json:"event"`
 	Data            interface{} `json:"data"`
 }

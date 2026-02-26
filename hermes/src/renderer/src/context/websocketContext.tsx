@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { useAuth } from './authContext'
 
 interface WebSocketContextType {
@@ -18,26 +18,41 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isConnected, setIsConnected] = useState(false)
   const { user, isLoading } = useAuth()
 
+  // Track reconnection attempts to prevent memory leaks
+  const reconnectTimeout = useRef<NodeJS.Timeout>()
+
   useEffect(() => {
     if (isLoading || !user) return
 
-    const ws = new WebSocket('ws://localhost:8080/api/ws')
+    const connect = () => {
+      const ws = new WebSocket('ws://localhost:8080/api/ws')
 
-    ws.onopen = () => {
-      console.log('Global WebSocket Connected')
-      setIsConnected(true)
-      setSocket(ws)
+      ws.onopen = () => {
+        console.log('Global WebSocket Connected')
+        setIsConnected(true)
+        setSocket(ws)
+        if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current)
+      }
+
+      ws.onclose = () => {
+        console.log('Global WebSocket Disconnected')
+        setIsConnected(false)
+        setSocket(null)
+        // Auto-reconnect every 3 seconds if the server drops
+        reconnectTimeout.current = setTimeout(connect, 3000)
+      }
+
+      ws.onerror = (error) => {
+        console.error('WebSocket Error:', error)
+        ws.close() // Force the onclose event to fire and trigger a reconnect
+      }
     }
 
-    ws.onclose = () => {
-      console.log('Global WebSocket Disconnected')
-      setIsConnected(false)
-      setSocket(null)
-      // Optional: Add reconnection logic here (e.g., setTimeout)
-    }
+    connect()
 
     return () => {
-      ws.close()
+      if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current)
+      if (ws) ws.close()
     }
   }, [user, isLoading])
 
