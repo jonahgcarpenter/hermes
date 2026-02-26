@@ -20,6 +20,7 @@ import EditServerModal from '../servers/modals/editServer'
 import JoinServerModal from '../servers/modals/joinServer'
 import UserSettingsModal from '../settings/userSettingsModal'
 import { useUser } from '../../context/userContext'
+import { useWebSocket } from '../../context/websocketContext'
 
 const getStatusColor = (status?: string) => {
   switch (status?.toLowerCase()) {
@@ -34,7 +35,33 @@ const getStatusColor = (status?: string) => {
 
 export default function Sidebar(): React.JSX.Element {
   const { profile } = useUser()
+  const { socket } = useWebSocket()
   const { servers, fetchServers, deleteServer } = useServers()
+
+  const [liveStatus, setLiveStatus] = useState(profile?.status)
+
+  useEffect(() => {
+    if (profile?.status) setLiveStatus(profile.status)
+  }, [profile?.status])
+
+  useEffect(() => {
+    if (!socket || !profile) return
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const msg = JSON.parse(event.data)
+        // Check if the event is a presence update specifically for our own User ID
+        if (msg.event === 'PRESENCE_UPDATE' && msg.data.user_id === profile.id.toString()) {
+          setLiveStatus(msg.data.status)
+        }
+      } catch (e) {
+        console.error('Failed to parse presence update in Sidebar:', e)
+      }
+    }
+
+    socket.addEventListener('message', handleMessage)
+    return () => socket.removeEventListener('message', handleMessage)
+  }, [socket, profile])
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
 
@@ -205,8 +232,8 @@ export default function Sidebar(): React.JSX.Element {
                 <img src={profile?.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
               </div>
               <div
-                className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full ring-2 ring-zinc-950 ${getStatusColor(profile?.status)}`}
-                title={profile?.status}
+                className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full ring-2 ring-zinc-950 ${getStatusColor(liveStatus)}`}
+                title={liveStatus}
               />
             </div>
           </div>
