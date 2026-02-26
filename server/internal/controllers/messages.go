@@ -25,13 +25,6 @@ func verifyChannel(c *gin.Context) (uint64, uint64, error) {
 	return serverID, channelID, nil
 }
 
-// Helper to fetch all UserIDs belonging to a server so we can target their WebSockets
-func getServerMemberIDs(serverID uint64) []uint64 {
-	var memberIDs []uint64
-	database.DB.Table("server_members").Where("server_id = ?", serverID).Pluck("user_id", &memberIDs)
-	return memberIDs
-}
-
 func ListMessages(c *gin.Context) {
 	_, channelID, err := verifyChannel(c)
 	if err != nil {
@@ -91,13 +84,12 @@ func SendMessage(c *gin.Context) {
 	database.DB.Preload("Author").First(&message, message.ID)
 
 	// Broadcast the new message to the WebSocket Hub so everyone in the channel sees it instantly.
-	memberIDs := getServerMemberIDs(serverID)
-	websockets.Manager.SendToUsers(memberIDs, websockets.WsMessage{
+	websockets.Manager.Broadcast <- websockets.WsMessage{
 		TargetServerID:  serverID,
 		TargetChannelID: channelID,
 		Event:           "MESSAGE_CREATE",
 		Data:            message,
-	})
+	}
 
 	c.JSON(http.StatusCreated, message)
 }
@@ -152,13 +144,12 @@ func EditMessage(c *gin.Context) {
 	database.DB.Preload("Author").First(&message, message.ID)
 
 	// Broadcast the UPDATE event to the WebSocket Hub.
-	memberIDs := getServerMemberIDs(serverID)
-	websockets.Manager.SendToUsers(memberIDs, websockets.WsMessage{
+	websockets.Manager.Broadcast <- websockets.WsMessage{
 		TargetServerID:  serverID,
 		TargetChannelID: channelID,
 		Event:           "MESSAGE_UPDATE",
 		Data:            message,
-	})
+	}
 
 	c.JSON(http.StatusOK, message)
 }
@@ -205,13 +196,12 @@ func DeleteMessage(c *gin.Context) {
 	// Broadcast the DELETE event. 
 	deletePayload := gin.H{"id": strconv.FormatUint(messageID, 10)}
 	
-	memberIDs := getServerMemberIDs(serverID)
-	websockets.Manager.SendToUsers(memberIDs, websockets.WsMessage{
+	websockets.Manager.Broadcast <- websockets.WsMessage{
 		TargetServerID:  serverID,
 		TargetChannelID: channelID,
 		Event:           "MESSAGE_DELETE",
 		Data:            deletePayload,
-	})
+	}
 
 	c.JSON(http.StatusNoContent, nil) // 204 No Content is the standard for a successful delete
 }

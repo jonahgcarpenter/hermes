@@ -21,6 +21,10 @@ func ServeGlobalWS(c *gin.Context) {
 	}
 	userID := userIDObj.(uint64)
 
+	// TODO: Query DB for a servers per user
+	userServers := []uint64{1, 2, 5}
+	// TODO: When a user joins a new server we also need to update this map to include the new server
+
 	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println("Failed to set websocket upgrade:", err)
@@ -30,11 +34,12 @@ func ServeGlobalWS(c *gin.Context) {
 	client := &Client{
 		Conn:   ws,
 		UserID: userID,
+		ServerIDs: userServers,
 		Send:   make(chan WsMessage, 256),
 	}
 
 	// Register with the global Hub
-	Manager.Register <- client //
+	Manager.Register <- client
 
 	// Start the read and write pumps in independent background goroutines
 	go client.writePump()

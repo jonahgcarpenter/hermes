@@ -9,6 +9,7 @@ type WsMessage struct {
 
 type Hub struct {
 	Clients    map[uint64]map[*Client]bool
+	ServerRooms map[uint64]map[*Client]bool
 	Broadcast  chan WsMessage
 	Register   chan *Client
 	Unregister chan *Client
@@ -16,6 +17,7 @@ type Hub struct {
 
 var Manager = Hub{
 	Clients:    make(map[uint64]map[*Client]bool),
+	ServerRooms: make(map[uint64]map[*Client]bool),
 	Broadcast:  make(chan WsMessage),
 	Register:   make(chan *Client),
 	Unregister: make(chan *Client),
@@ -29,31 +31,65 @@ func (h *Hub) Run() {
 
 		// Client Connected
 		case client := <-h.Register:
+			// Register User Connection
 			if h.Clients[client.UserID] == nil {
 				h.Clients[client.UserID] = make(map[*Client]bool)
 			}
 			h.Clients[client.UserID][client] = true
+            
+			// Register Server Subscriptions (The Fan-Out Map)
+			for _, serverID := range client.ServerIDs {
+				if h.ServerRooms[serverID] == nil {
+					h.ServerRooms[serverID] = make(map[*Client]bool)
+				}
+				h.ServerRooms[serverID][client] = true
+			}
 		
 		// Client Disconnected
 		case client := <-h.Unregister:
 			if _, ok := h.Clients[client.UserID][client]; ok {
+				// Clean up User Connections
 				delete(h.Clients[client.UserID], client)
-				client.Conn.Close()
 				if len(h.Clients[client.UserID]) == 0 {
 					delete(h.Clients, client.UserID)
 				}
+                
+				// Clean up Server Rooms
+				for _, serverID := range client.ServerIDs {
+					if _, roomExists := h.ServerRooms[serverID]; roomExists {
+						delete(h.ServerRooms[serverID], client)
+						// Clean up empty server rooms to save memory
+						if len(h.ServerRooms[serverID]) == 0 {
+							delete(h.ServerRooms, serverID)
+						}
+					}
+				}
+				client.Conn.Close()
 			}
-		}
-	}
-}
 
-func (h *Hub) SendToUsers(userIDs []uint64, msg WsMessage) {
-	for _, id := range userIDs {
-		// If the user is currently online (exists in the Clients map)
-		if userConns, ok := h.Clients[id]; ok {
-			for client := range userConns {
-				// Safely drop the message into the client's write channel
-				client.Send <- msg
+		// Broadcast triggered by HTTP Controllers or Internal Events
+		case msg := <-h.Broadcast:
+			// Get the Set of connected clients for this Server
+			if roomConns, ok := h.ServerRooms[msg.TargetServerID]; ok {
+				// Iterate through only the clients who need this message
+				for client := range roomConns {
+					// Non-blocking send
+					select {
+					case client.Send <- msg:
+						// Successfully pushed to the client's send buffer
+					default:
+						// The client's buffer is full (dead or stuck connection).
+						// Close the channel. The writePump will error out, 
+						// close the socket, and trigger the Unregister flow cleanly.
+						close(client.Send)
+						
+						// Remove them from the routing maps immediately to prevent retries
+						delete(h.ServerRooms[msg.TargetServerID], client)
+						if _, userOk := h.Clients[client.UserID][client]; userOk {
+							delete(h.Clients[client.UserID], client)
+						}
+					}
+				}
 			}
 		}
 	}
