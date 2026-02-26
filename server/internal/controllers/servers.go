@@ -10,6 +10,7 @@ import (
 	"github.com/jonahgcarpenter/hermes/server/internal/database"
 	"github.com/jonahgcarpenter/hermes/server/internal/models"
 	"github.com/jonahgcarpenter/hermes/server/internal/utils"
+	"github.com/jonahgcarpenter/hermes/server/internal/websockets"
 )
 
 // Helper to extract "serverID" from URL
@@ -144,6 +145,12 @@ func CreateServer(c *gin.Context) {
 
 	tx.Commit() // Succeeded
 
+	// Join the newly created server's WS room
+	websockets.Manager.JoinRoom <- websockets.RoomUpdate{
+		UserID:   userID,
+		ServerID: server.ID,
+	}
+
 	c.JSON(http.StatusCreated, server)
 }
 
@@ -233,14 +240,13 @@ func JoinServer(c *gin.Context) {
 	userIDObj, _ := c.Get("user_id")
 	userID := userIDObj.(uint64)
 
-	// Before creating a new membership, check if one already exists in the database
 	var server models.Server
 	if err := database.DB.First(&server, serverID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Server not found"})
 		return
 	}
 
-	// Check if user is already a member (and hasn't left)
+	// Check if user is already a member
 	var existingMember models.ServerMember
 	err = database.DB.Where("server_id = ? AND user_id = ?", serverID, userID).First(&existingMember).Error
 	if err == nil {
@@ -253,21 +259,35 @@ func JoinServer(c *gin.Context) {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to rejoin server"})
 				return
 			}
-			c.JSON(http.StatusOK, gin.H{"message": "Successfully rejoined the server"})
+		}
+	} else {
+		// Brand new member
+		newMember := models.ServerMember{
+			ServerID: serverID,
+			UserID:   userID,
+			Role:     "member",
+		}
+		if err := database.DB.Create(&newMember).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to join server"})
 			return
 		}
 	}
 
-	// If no record was found, this is a brand new member. Create their membership record.
-	newMember := models.ServerMember{
-		ServerID: serverID,
+	// Fetch the user's profile to send to everyone else in the server
+	var user models.User
+	database.DB.Select("id", "username", "avatar_url").First(&user, userID)
+
+	// Update the live WebSocket subscriptions
+	websockets.Manager.JoinRoom <- websockets.RoomUpdate{
 		UserID:   userID,
-		Role:     "member",
+		ServerID: serverID,
 	}
 
-	if err := database.DB.Create(&newMember).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to join server"})
-		return
+	// Broadcast to the room that someone new arrived
+	websockets.Manager.Broadcast <- websockets.WsMessage{
+		TargetServerID: serverID,
+		Event:          "SERVER_MEMBER_ADD",
+		Data:           user, 
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Successfully joined the server"})
@@ -303,6 +323,19 @@ func LeaveServer(c *gin.Context) {
 	if err := database.DB.Model(&member).Update("left_at", &now).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to leave server"})
 		return
+	}
+
+	// Instantly cut off WebSocket events for this server
+	websockets.Manager.LeaveRoom <- websockets.RoomUpdate{
+		UserID:   userID,
+		ServerID: serverID,
+	}
+    
+	// Broadcast departure to remaining members
+	websockets.Manager.Broadcast <- websockets.WsMessage{
+		TargetServerID: serverID,
+		Event:          "SERVER_MEMBER_REMOVE",
+		Data:           gin.H{"user_id": userID},
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Successfully left the server"})

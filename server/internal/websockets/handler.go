@@ -6,6 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+
+	"github.com/jonahgcarpenter/hermes/server/internal/database"
+	"github.com/jonahgcarpenter/hermes/server/internal/models"
 )
 
 var upgrader = websocket.Upgrader{
@@ -21,13 +24,21 @@ func ServeGlobalWS(c *gin.Context) {
 	}
 	userID := userIDObj.(uint64)
 
-	// TODO: Query DB for a servers per user
-	userServers := []uint64{1, 2, 5}
-	// TODO: When a user joins a new server we also need to update this map to include the new server
+	// Query DB for all servers this user is actively a member of
+	var userServers []uint64
+	err := database.DB.Model(&models.ServerMember{}).
+		Where("user_id = ? AND left_at IS NULL", userID).
+		Pluck("server_id", &userServers).Error
 
-	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Println("Failed to set websocket upgrade:", err)
+		log.Printf("Warning: Failed to fetch servers for user %d: %v", userID, err)
+		// Default to an empty slice so the WebSocket connection still succeeds (for DMs, etc.)
+		userServers = []uint64{} 
+	}
+
+	ws, upgradeErr := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if upgradeErr != nil {
+		log.Println("Failed to set websocket upgrade:", upgradeErr)
 		return
 	}
 
