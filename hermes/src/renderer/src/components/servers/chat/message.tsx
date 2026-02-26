@@ -29,7 +29,7 @@ export default function Message({ content, member, timestamp, isHead = true }: M
       }`}
     >
       {isHead ? (
-        <div className="cursor-pointer w-10 h-10 rounded-full bg-indigo-500 flex-shrink-0 flex items-center justify-center text-white overflow-hidden mt-0.5">
+        <div className="cursor-pointer w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-white overflow-hidden mt-0.5">
           {member.avatarUrl ? (
             <img src={member.avatarUrl} alt={member.name} className="w-full h-full object-cover" />
           ) : (
