@@ -6,6 +6,7 @@ import { Send, Image, Users } from 'lucide-react'
 import { useChat } from '../../hooks/useChats'
 import { useUser } from '../../context/userContext'
 import { useWebSocket } from '../../context/websocketContext'
+import { useChannels } from '../../hooks/useChannels'
 
 export default function ServerPage() {
   const { serverId, channelId } = useParams()
@@ -17,6 +18,15 @@ export default function ServerPage() {
     serverId || '',
     channelId || ''
   )
+
+  const { channels, fetchChannels } = useChannels(serverId || '')
+
+  useEffect(() => {
+    fetchChannels()
+  }, [fetchChannels])
+
+  const currentChannel = channels.find((c) => c.id === channelId)
+  const channelName = currentChannel?.name || '...'
 
   const [input, setInput] = useState('')
   const lastTypingTime = useRef<number>(0)
@@ -84,9 +94,7 @@ export default function ServerPage() {
       <div className="h-12 border-b border-[#26272D] flex items-center px-4 shadow-sm justify-between">
         <div className="flex items-center text-zinc-200 font-semibold">
           <span className="text-zinc-400 mr-2">#</span>
-          {/* TODO: */}
-          {/* You could fetch the actual channel name here using useChannels, defaulting to channelId for now */}
-          {channelId}
+          {channelName}
         </div>
         <div className="flex items-center text-xs">
           {/* Toggle Members Button */}
@@ -155,7 +163,7 @@ export default function ServerPage() {
               type="text"
               value={input}
               onChange={handleInputChange}
-              placeholder={`Message #${channelId}`}
+              placeholder={`Message #${channelName}`}
               className="w-full bg-transparent text-zinc-200 placeholder-zinc-400 outline-none"
               disabled={!isConnected}
             />
