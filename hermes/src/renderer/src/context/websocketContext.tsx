@@ -24,8 +24,10 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     if (isLoading || !user) return
 
+    let ws: WebSocket
+
     const connect = () => {
-      const ws = new WebSocket('ws://localhost:8080/api/ws')
+      ws = new WebSocket('ws://localhost:8080/api/ws')
 
       ws.onopen = () => {
         setIsConnected(true)
