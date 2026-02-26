@@ -28,14 +28,12 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const ws = new WebSocket('ws://localhost:8080/api/ws')
 
       ws.onopen = () => {
-        console.log('Global WebSocket Connected')
         setIsConnected(true)
         setSocket(ws)
         if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current)
       }
 
       ws.onclose = () => {
-        console.log('Global WebSocket Disconnected')
         setIsConnected(false)
         setSocket(null)
         // Auto-reconnect every 3 seconds if the server drops
