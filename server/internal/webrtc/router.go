@@ -54,7 +54,7 @@ func handleOffer(c *VoiceClient, msg websockets.WsMessage) {
 		TargetServerID: channel.ServerID,
 		Event:          "VOICE_STATE_UPDATE",
 		Data: map[string]interface{}{
-			"channel_id": fmt.Sprintf("%d", msg.TargetChannelID), 
+			"channel_id": fmt.Sprintf("%d", msg.TargetChannelID),
 			"action":     "join",
 			"user": map[string]interface{}{
 				"id":         user.ID,
@@ -137,7 +137,7 @@ func handleIceCandidate(c *VoiceClient, msg websockets.WsMessage) {
 	}
 
 	room := Manager.GetOrCreateRoom(msg.TargetChannelID)
-	
+
 	// Safely retrieve the user's PeerConnection
 	room.mu.RLock()
 	pc, exists := room.Peers[c.UserID]

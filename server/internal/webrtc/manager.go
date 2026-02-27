@@ -13,7 +13,7 @@ type Room struct {
 	ID    uint64
 	Peers map[uint64]*webrtc.PeerConnection
 	// A list of all active audio/video tracks in this room
-	Tracks []*webrtc.TrackLocalStaticRTP 
+	Tracks []*webrtc.TrackLocalStaticRTP
 	mu     sync.RWMutex
 }
 
@@ -90,7 +90,7 @@ func (r *Room) AddPeer(userID uint64, pc *webrtc.PeerConnection) {
 				i, _, readErr := remoteTrack.Read(rtpBuf)
 				if readErr != nil {
 					log.Printf("[SFU Manager] Stopped reading track from User %d: %v", userID, readErr)
-					return 
+					return
 				}
 				if _, writeErr := localTrack.Write(rtpBuf[:i]); writeErr != nil {
 					log.Printf("[SFU Error] Failed to write to local track: %v", writeErr)
@@ -122,10 +122,10 @@ func (r *Room) RemovePeer(userID uint64) {
 		pc.Close()
 		delete(r.Peers, userID)
 	}
-	
+
 	// Check if the room is empty while we still have the room lock
 	isEmpty := len(r.Peers) == 0
-	
+
 	r.mu.Unlock() // Release the room lock BEFORE touching the Manager
 
 	// Clean up the room if it's empty

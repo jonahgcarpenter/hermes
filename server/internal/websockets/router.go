@@ -8,7 +8,7 @@ func RouteMessage(c *Client, msg WsMessage) {
 	case "TYPING_START": //
 		// We trust the client's payload and just fan it out to the room.
 		Manager.Broadcast <- msg
-		
+
 	default:
 		log.Printf("Unknown event type received: %s", msg.Event)
 	}

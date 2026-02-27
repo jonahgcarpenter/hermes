@@ -20,7 +20,7 @@ func ListChannels(c *gin.Context) {
 
 	var channels []models.Channel
 	// Fetch all channels belonging to this server.
-	// Order("position asc, name asc"): First sorts by their UI order (0, 1, 2, 3...). 
+	// Order("position asc, name asc"): First sorts by their UI order (0, 1, 2, 3...).
 	// If two channels have the same position, it breaks the tie alphabetically by name.
 	if err := database.DB.Where("server_id = ?", serverID).
 		Order("position asc, name asc").
@@ -64,7 +64,7 @@ func CreateChannel(c *gin.Context) {
 		return
 	}
 
-	// Find the current highest position in the server 
+	// Find the current highest position in the server
 	// so we can put this new channel at the bottom of the list automatically!
 	var maxPosition int
 	database.DB.Model(&models.Channel{}).Where("server_id = ?", serverID).Select("COALESCE(MAX(position), 0)").Scan(&maxPosition)

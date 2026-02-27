@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	
+
 	"github.com/jonahgcarpenter/hermes/server/internal/database"
 	"github.com/jonahgcarpenter/hermes/server/internal/models"
 	"github.com/jonahgcarpenter/hermes/server/internal/utils"
@@ -50,7 +50,7 @@ func ListServerMembers(c *gin.Context) {
 
 	// Fetch all members where LeftAt is NULL
 	var members []models.ServerMember
-	
+
 	// We use Preload("User") to include the actual profile data for each member
 	// We filter by left_at IS NULL to ensure we only get active participants
 	result := database.DB.Preload("User").
@@ -82,16 +82,16 @@ func CreateServer(c *gin.Context) {
 	}
 
 	// Generate Snowflake ID
-	serverID := utils.GenerateID() 
+	serverID := utils.GenerateID()
 
 	server := models.Server{
-		ID: 		 serverID,
+		ID:      serverID,
 		Name:    payload.Name,
 		IconURL: payload.IconURL,
 		OwnerID: userID,
 	}
 
-	// We use a database transaction to ensure both are created 
+	// We use a database transaction to ensure both are created
 	tx := database.DB.Begin()
 
 	if err := tx.Create(&server).Error; err != nil {
@@ -220,7 +220,7 @@ func DeleteServer(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid server ID"})
 		return
 	}
-	
+
 	// Perform soft delete
 	if err := database.DB.Delete(&models.Server{}, serverID).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete server"})
@@ -287,7 +287,7 @@ func JoinServer(c *gin.Context) {
 	websockets.Manager.Broadcast <- websockets.WsMessage{
 		TargetServerID: serverID,
 		Event:          "SERVER_MEMBER_ADD",
-		Data:           user, 
+		Data:           user,
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Successfully joined the server"})
@@ -330,7 +330,7 @@ func LeaveServer(c *gin.Context) {
 		UserID:   userID,
 		ServerID: serverID,
 	}
-    
+
 	// Broadcast departure to remaining members
 	websockets.Manager.Broadcast <- websockets.WsMessage{
 		TargetServerID: serverID,

@@ -2,11 +2,11 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
-	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -35,7 +35,6 @@ func Register(c *gin.Context) {
 	// Normalize identities
 	normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
 	normalizedUsername := strings.ToLower(strings.TrimSpace(req.Username))
-
 
 	// Pre-flight checks for Email/Username
 	var existingUser models.User
@@ -80,7 +79,7 @@ func Register(c *gin.Context) {
 
 	// Save to database
 	if err := database.DB.Create(&user).Error; err != nil {
-		
+
 		// Check if the error is specifically a duplicate key
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Username or email is already taken"})
@@ -89,7 +88,7 @@ func Register(c *gin.Context) {
 
 		// Otherwise log error for future investigation
 		log.Printf("Failed to create user in database: %v\n", err)
-		
+
 		// Return generic error to user
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "An internal server error occurred"})
 		return
@@ -168,7 +167,7 @@ func Login(c *gin.Context) {
 	authUser := AuthUserResponse{
 		ID: user.ID,
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
 		"user":    authUser,
@@ -194,7 +193,7 @@ func Logout(c *gin.Context) {
 	c.SetCookie(
 		"hermes_session",
 		"",
-		-1,	// MaxAge -1 tells the browser to delete it immediately
+		-1, // MaxAge -1 tells the browser to delete it immediately
 		"/",
 		"",
 		isProduction,

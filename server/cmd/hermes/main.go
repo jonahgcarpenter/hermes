@@ -1,16 +1,16 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 
 	"github.com/jonahgcarpenter/hermes/server/internal/config"
-	"github.com/jonahgcarpenter/hermes/server/internal/database"
 	"github.com/jonahgcarpenter/hermes/server/internal/controllers"
-	"github.com/jonahgcarpenter/hermes/server/internal/utils"
+	"github.com/jonahgcarpenter/hermes/server/internal/database"
 	"github.com/jonahgcarpenter/hermes/server/internal/middleware"
-	"github.com/jonahgcarpenter/hermes/server/internal/websockets"
+	"github.com/jonahgcarpenter/hermes/server/internal/utils"
 	"github.com/jonahgcarpenter/hermes/server/internal/webrtc"
+	"github.com/jonahgcarpenter/hermes/server/internal/websockets"
 )
 
 func main() {
@@ -39,7 +39,7 @@ func main() {
 	api := r.Group("/api")
 	{
 		// Global WebSocket Endpoint
-    api.GET("/ws", middleware.AuthRequired(), websockets.ServeGlobalWS)
+		api.GET("/ws", middleware.AuthRequired(), websockets.ServeGlobalWS)
 
 		// Voice WS Endpoints
 		api.GET("/ws/voice", middleware.AuthRequired(), webrtc.ServeVoiceWS)

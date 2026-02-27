@@ -1,15 +1,15 @@
 package websockets
 
 import (
-	"log"
 	"github.com/gorilla/websocket"
+	"log"
 )
 
 type Client struct {
-	Conn   *websocket.Conn
-	UserID uint64
+	Conn      *websocket.Conn
+	UserID    uint64
 	ServerIDs []uint64
-	Send   chan WsMessage
+	Send      chan WsMessage
 }
 
 // readPump pumps messages from the websocket connection to the router.

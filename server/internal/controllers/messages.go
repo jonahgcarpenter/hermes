@@ -176,9 +176,9 @@ func DeleteMessage(c *gin.Context) {
 	// Grab user identity and their server role from the Gin context
 	userIDObj, _ := c.Get("user_id")
 	userID := userIDObj.(uint64)
-	
+
 	// c.GetString safely returns an empty string if it isn't found
-	serverRole := c.GetString("server_role") 
+	serverRole := c.GetString("server_role")
 
 	// Can this user delete this message?
 	// They must either be the Author, OR have admin/owner privileges in this server.
@@ -193,9 +193,9 @@ func DeleteMessage(c *gin.Context) {
 		return
 	}
 
-	// Broadcast the DELETE event. 
+	// Broadcast the DELETE event.
 	deletePayload := gin.H{"id": strconv.FormatUint(messageID, 10)}
-	
+
 	websockets.Manager.Broadcast <- websockets.WsMessage{
 		TargetServerID:  serverID,
 		TargetChannelID: channelID,

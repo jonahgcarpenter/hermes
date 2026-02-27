@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	
-	"github.com/jonahgcarpenter/hermes/server/internal/database" 
-	"github.com/jonahgcarpenter/hermes/server/internal/models"   
+
+	"github.com/jonahgcarpenter/hermes/server/internal/database"
+	"github.com/jonahgcarpenter/hermes/server/internal/models"
 )
 
 type UpdateUserPayload struct {
@@ -62,7 +62,7 @@ func UpdateCurrentUser(c *gin.Context) {
 	// Check if username is taken by ANYONE ELSE (exclude current user ID)
 	if payload.Username != nil {
 		normalizedUsername := strings.ToLower(strings.TrimSpace(*payload.Username))
-		
+
 		if err := database.DB.Model(&models.User{}).Where("username = ? AND id != ?", normalizedUsername, userID).Count(&count).Error; err == nil && count > 0 {
 			c.JSON(http.StatusConflict, gin.H{"error": "Username is already taken"})
 			return
@@ -73,12 +73,12 @@ func UpdateCurrentUser(c *gin.Context) {
 	// Check if email is taken by ANYONE ELSE (exclude current user ID)
 	if payload.Email != nil {
 		normalizedEmail := strings.ToLower(strings.TrimSpace(*payload.Email))
-		
+
 		if err := database.DB.Model(&models.User{}).Where("email = ? AND id != ?", normalizedEmail, userID).Count(&count).Error; err == nil && count > 0 {
 			c.JSON(http.StatusConflict, gin.H{"error": "Email is already in use"})
 			return
 		}
-		updates["email"] = normalizedEmail 
+		updates["email"] = normalizedEmail
 	}
 
 	// Update only the fields that were provided in the request
@@ -92,7 +92,7 @@ func UpdateCurrentUser(c *gin.Context) {
 		updates["status"] = *payload.Status
 	}
 
-	if len(updates) > 0 { 
+	if len(updates) > 0 {
 		if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user"})
 			return
@@ -126,12 +126,12 @@ func DeleteCurrentUser(c *gin.Context) {
 	// Scramble the password so they can never log back in
 	database.DB.Model(&models.User{}).Where("id = ?", userID).Update("password_hash", "DELETED_ACCOUNT")
 
-	c.JSON(http.StatusNoContent, nil) 
+	c.JSON(http.StatusNoContent, nil)
 }
 
 func GetUserProfile(c *gin.Context) {
 	userIDStr := c.Param("userID")
-	
+
 	// Convert string ID from URL to uint64
 	userID, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {

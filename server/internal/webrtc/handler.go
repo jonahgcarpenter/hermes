@@ -89,13 +89,13 @@ func (c *VoiceClient) readPump() {
 
 		// Gather the rooms safely WITHOUT calling RemovePeer yet
 		var activeRooms []*Room
-		
+
 		Manager.mu.RLock()
 		for _, room := range Manager.Rooms {
 			room.mu.RLock()
 			_, exists := room.Peers[c.UserID]
 			room.mu.RUnlock()
-			
+
 			if exists {
 				activeRooms = append(activeRooms, room)
 			}

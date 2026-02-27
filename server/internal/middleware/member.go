@@ -32,7 +32,7 @@ func RequireMembership() gin.HandlerFunc {
 			return
 		}
 
-		// Store the user's role in the context so subsequent 
+		// Store the user's role in the context so subsequent
 		c.Set("server_role", member.Role)
 
 		c.Next()
@@ -82,11 +82,11 @@ func hasPermission(userRole string, required string) bool {
 	case "manage_server", "manage_channels", "delete_messages":
 		// Only admins and owners can do these destructive/administrative actions
 		return userRole == "admin"
-	
+
 	case "send_messages", "join_voice":
 		// Regular members (and admins/owners) can do basic interactions
 		return userRole == "member" || userRole == "admin"
-	
+
 	default:
 		// If we don't recognize the permission, default to deny for safety
 		return false

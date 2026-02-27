@@ -15,7 +15,7 @@ type OfflineRequest struct {
 
 type WsMessage struct {
 	TargetServerID  uint64      `json:"server_id,string,omitempty"`
-	TargetChannelID uint64      `json:"channel_id,string,omitempty"` 
+	TargetChannelID uint64      `json:"channel_id,string,omitempty"`
 	Event           string      `json:"event"`
 	Data            interface{} `json:"data"`
 }
@@ -26,25 +26,25 @@ type RoomUpdate struct {
 }
 
 type Hub struct {
-	Clients    map[uint64]map[*Client]bool
-	ServerRooms map[uint64]map[*Client]bool
-	Broadcast  chan WsMessage
-	Register   chan *Client
-	Unregister chan *Client
-	JoinRoom    chan RoomUpdate
-	LeaveRoom   chan RoomUpdate
+	Clients         map[uint64]map[*Client]bool
+	ServerRooms     map[uint64]map[*Client]bool
+	Broadcast       chan WsMessage
+	Register        chan *Client
+	Unregister      chan *Client
+	JoinRoom        chan RoomUpdate
+	LeaveRoom       chan RoomUpdate
 	OfflineTimers   map[uint64]*time.Timer
 	FinalizeOffline chan OfflineRequest
 }
 
 var Manager = Hub{
-	Clients:    make(map[uint64]map[*Client]bool),
-	ServerRooms: make(map[uint64]map[*Client]bool),
-	Broadcast:  make(chan WsMessage),
-	Register:   make(chan *Client),
-	Unregister: make(chan *Client),
-	JoinRoom:    make(chan RoomUpdate),
-	LeaveRoom:   make(chan RoomUpdate),
+	Clients:         make(map[uint64]map[*Client]bool),
+	ServerRooms:     make(map[uint64]map[*Client]bool),
+	Broadcast:       make(chan WsMessage),
+	Register:        make(chan *Client),
+	Unregister:      make(chan *Client),
+	JoinRoom:        make(chan RoomUpdate),
+	LeaveRoom:       make(chan RoomUpdate),
 	OfflineTimers:   make(map[uint64]*time.Timer),
 	FinalizeOffline: make(chan OfflineRequest),
 }
@@ -71,7 +71,7 @@ func (h *Hub) Run() {
 				h.Clients[client.UserID] = make(map[*Client]bool)
 			}
 			h.Clients[client.UserID][client] = true
-            
+
 			// If this is their FIRST connection, broadcast online
 			if isFirstConnection {
 				// Update database
@@ -87,7 +87,7 @@ func (h *Hub) Run() {
 							"status":  "online",
 						},
 					}
-					
+
 					// Fire in a goroutine to prevent deadlocking the Hub's Run() loop
 					go func(msg WsMessage) {
 						h.Broadcast <- msg
@@ -102,13 +102,13 @@ func (h *Hub) Run() {
 				}
 				h.ServerRooms[serverID][client] = true
 			}
-		
+
 		// Client Disconnected
 		case client := <-h.Unregister:
 			if _, ok := h.Clients[client.UserID][client]; ok {
 				// Clean up User Connections
 				delete(h.Clients[client.UserID], client)
-				
+
 				// If this was their LAST active connection
 				if len(h.Clients[client.UserID]) == 0 {
 					delete(h.Clients, client.UserID)
@@ -145,7 +145,7 @@ func (h *Hub) Run() {
 					})
 					h.OfflineTimers[userID] = timer
 				}
-                
+
 				// Clean up Server Rooms
 				for _, serverID := range client.ServerIDs {
 					if _, roomExists := h.ServerRooms[serverID]; roomExists {
@@ -163,7 +163,7 @@ func (h *Hub) Run() {
 		case req := <-h.FinalizeOffline:
 			// Double-check they didn't magically reconnect exactly as the timer fired
 			if len(h.Clients[req.UserID]) == 0 {
-				
+
 				database.DB.Model(&models.User{}).Where("id = ?", req.UserID).Update("status", "offline")
 
 				for _, serverID := range req.ServerIDs {
@@ -196,10 +196,10 @@ func (h *Hub) Run() {
 						// Successfully pushed to the client's send buffer
 					default:
 						// The client's buffer is full (dead or stuck connection).
-						// Close the channel. The writePump will error out, 
+						// Close the channel. The writePump will error out,
 						// close the socket, and trigger the Unregister flow cleanly.
 						close(client.Send)
-						
+
 						// Remove them from the routing maps immediately to prevent retries
 						delete(h.ServerRooms[msg.TargetServerID], client)
 						if _, userOk := h.Clients[client.UserID][client]; userOk {
@@ -246,7 +246,7 @@ func (h *Hub) Run() {
 							delete(h.ServerRooms, req.ServerID)
 						}
 					}
-					
+
 					// Remove from their personal tracker slice
 					for i, id := range client.ServerIDs {
 						if id == req.ServerID {

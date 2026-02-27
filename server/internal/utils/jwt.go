@@ -49,7 +49,7 @@ func VerifyToken(tokenString string) (*Claims, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Validate token
 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
 		return claims, nil

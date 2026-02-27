@@ -33,7 +33,7 @@ func ServeGlobalWS(c *gin.Context) {
 	if err != nil {
 		log.Printf("Warning: Failed to fetch servers for user %d: %v", userID, err)
 		// Default to an empty slice so the WebSocket connection still succeeds (for DMs, etc.)
-		userServers = []uint64{} 
+		userServers = []uint64{}
 	}
 
 	ws, upgradeErr := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -43,10 +43,10 @@ func ServeGlobalWS(c *gin.Context) {
 	}
 
 	client := &Client{
-		Conn:   ws,
-		UserID: userID,
+		Conn:      ws,
+		UserID:    userID,
 		ServerIDs: userServers,
-		Send:   make(chan WsMessage, 256),
+		Send:      make(chan WsMessage, 256),
 	}
 
 	// Register with the global Hub
@@ -54,5 +54,5 @@ func ServeGlobalWS(c *gin.Context) {
 
 	// Start the read and write pumps in independent background goroutines
 	go client.writePump()
-	go client.readPump() 
+	go client.readPump()
 }

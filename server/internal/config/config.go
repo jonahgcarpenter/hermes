@@ -9,9 +9,9 @@ import (
 )
 
 type Config struct {
-	Port string
+	Port        string
 	DatabaseURL string
-	JWTSecret string
+	JWTSecret   string
 }
 
 func Load() *Config {
@@ -20,9 +20,9 @@ func Load() *Config {
 	}
 
 	return &Config{
-		Port: getEnv("PORT", "8080"),
-		DatabaseURL: getEnv("DATABASE_URL", ""), // SQLite when not set
-		JWTSecret: getEnv("JWT_SECRET", "super-secure-secret-please-change"), // openssl rand -base64 32
+		Port:        getEnv("PORT", "8080"),
+		DatabaseURL: getEnv("DATABASE_URL", ""),                                // SQLite when not set
+		JWTSecret:   getEnv("JWT_SECRET", "super-secure-secret-please-change"), // openssl rand -base64 32
 	}
 }
 
