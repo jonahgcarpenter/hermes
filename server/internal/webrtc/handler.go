@@ -1,7 +1,6 @@
 package webrtc
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -72,9 +71,9 @@ func (c *VoiceClient) readPump() {
 				TargetServerID: c.ActiveServerID,
 				Event:          "VOICE_STATE_UPDATE",
 				Data: map[string]interface{}{
-					"channel_id": fmt.Sprintf("%d", c.ActiveChannelID),
+					"channel_id": c.ActiveChannelID,
 					"action":     "leave",
-					"user_id":    fmt.Sprintf("%d", c.UserID),
+					"user_id":    c.UserID,
 				},
 			}
 		}

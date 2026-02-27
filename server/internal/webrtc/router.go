@@ -53,7 +53,7 @@ func handleOffer(c *VoiceClient, msg websockets.WsMessage) {
 			"channel_id": fmt.Sprintf("%d", msg.TargetChannelID), 
 			"action":     "join",
 			"user": map[string]interface{}{
-				"id":         fmt.Sprintf("%d", user.ID),
+				"id":         user.ID,
 				"name":       user.DisplayName,
 				"avatar_url": user.AvatarURL,
 			},
