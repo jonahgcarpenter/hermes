@@ -64,6 +64,7 @@ func (r *Room) AddPeer(userID uint64, pc *webrtc.PeerConnection) {
 	pc.OnTrack(func(remoteTrack *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		log.Printf("[SFU Manager] <<< Received incoming remote track from User %d (Kind: %s, ID: %s)", userID, remoteTrack.Kind().String(), remoteTrack.ID())
 
+		// Create a local track that acts as a duplicate of the incoming remote track
 		localTrack, err := webrtc.NewTrackLocalStaticRTP(
 			remoteTrack.Codec().RTPCodecCapability,
 			remoteTrack.ID(),
@@ -74,6 +75,7 @@ func (r *Room) AddPeer(userID uint64, pc *webrtc.PeerConnection) {
 			return
 		}
 
+		// Save the new track to the room's track list
 		r.mu.Lock()
 		r.Tracks = append(r.Tracks, localTrack)
 		r.mu.Unlock()
@@ -99,7 +101,7 @@ func (r *Room) AddPeer(userID uint64, pc *webrtc.PeerConnection) {
 		// Give this new audio track to all OTHER users
 		r.mu.RLock()
 		for peerID, peerPC := range r.Peers {
-			if peerID != userID { 
+			if peerID != userID { // Don't send the user's audio back to themselves
 				if _, err := peerPC.AddTrack(localTrack); err != nil {
 					log.Printf("[SFU Error] Failed to forward track to Peer %d: %v", peerID, err)
 				} else {

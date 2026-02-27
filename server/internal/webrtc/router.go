@@ -12,6 +12,7 @@ import (
 	"github.com/jonahgcarpenter/hermes/server/internal/websockets"
 )
 
+// RouteVoiceMessage determines what to do with incoming signaling data.
 func RouteVoiceMessage(c *VoiceClient, msg websockets.WsMessage) {
 	switch msg.Event {
 	case "WEBRTC_OFFER":
@@ -23,9 +24,11 @@ func RouteVoiceMessage(c *VoiceClient, msg websockets.WsMessage) {
 	}
 }
 
+// The client proposes connection details (the Offer), and the server Responds.
 func handleOffer(c *VoiceClient, msg websockets.WsMessage) {
 	log.Printf("[WebRTC Router] Processing WEBRTC_OFFER for User %d", c.UserID)
 
+	// Decode the WebRTC Offer from the JSON payload
 	dataBytes, _ := json.Marshal(msg.Data)
 	var offer webrtc.SessionDescription
 	if err := json.Unmarshal(dataBytes, &offer); err != nil {
@@ -60,6 +63,7 @@ func handleOffer(c *VoiceClient, msg websockets.WsMessage) {
 		},
 	}
 
+	// Set up the Pion WebRTC PeerConnection
 	config := webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
 			{URLs: []string{"stun:stun.l.google.com:19302"}},
@@ -72,6 +76,7 @@ func handleOffer(c *VoiceClient, msg websockets.WsMessage) {
 	}
 	log.Printf("[WebRTC Router] PeerConnection created for User %d", c.UserID)
 
+	// Setup ICE Candidate listener. As the server figures out its network paths, send them to the client
 	pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
 		if candidate == nil {
 			return
@@ -88,15 +93,18 @@ func handleOffer(c *VoiceClient, msg websockets.WsMessage) {
 		log.Printf("[WebRTC Router] Peer Connection State for User %d has changed: %s", c.UserID, s.String())
 	})
 
+	// Register the newly created PeerConnection with the SFU Room Manager
 	room := Manager.GetOrCreateRoom(msg.TargetChannelID)
 	room.AddPeer(c.UserID, pc)
 
+	// Accept the client's offer (Remote Description)
 	if err := pc.SetRemoteDescription(offer); err != nil {
 		log.Printf("[WebRTC Error] Failed to set remote description: %v", err)
 		return
 	}
 	log.Printf("[WebRTC Router] Remote Description set successfully")
 
+	// Generate the Server's answer (Local Description)
 	answer, err := pc.CreateAnswer(nil)
 	if err != nil {
 		log.Printf("[WebRTC Error] Failed to create answer: %v", err)
@@ -109,6 +117,7 @@ func handleOffer(c *VoiceClient, msg websockets.WsMessage) {
 	}
 	log.Printf("[WebRTC Router] Local Description (Answer) set successfully")
 
+	// Send the Answer back to the client over the WebSocket
 	log.Printf("[WebRTC Router] >>> Sending WEBRTC_ANSWER to User %d", c.UserID)
 	c.Send <- websockets.WsMessage{
 		TargetChannelID: msg.TargetChannelID,
@@ -117,6 +126,7 @@ func handleOffer(c *VoiceClient, msg websockets.WsMessage) {
 	}
 }
 
+// Receives network routing information from the client and gives it to Pion WebRTC.
 func handleIceCandidate(c *VoiceClient, msg websockets.WsMessage) {
 	dataBytes, _ := json.Marshal(msg.Data)
 	var candidate webrtc.ICECandidateInit
@@ -127,10 +137,12 @@ func handleIceCandidate(c *VoiceClient, msg websockets.WsMessage) {
 
 	room := Manager.GetOrCreateRoom(msg.TargetChannelID)
 	
+	// Safely retrieve the user's PeerConnection
 	room.mu.RLock()
 	pc, exists := room.Peers[c.UserID]
 	room.mu.RUnlock()
 
+	// If the connection exists, append the new routing candidate
 	if exists {
 		if err := pc.AddICECandidate(candidate); err != nil {
 			log.Printf("[WebRTC Error] Error adding ICE candidate: %v", err)

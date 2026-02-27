@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+
 	"github.com/jonahgcarpenter/hermes/server/internal/websockets"
 )
 
@@ -30,6 +31,7 @@ var VoiceRegistry = struct {
 }{Clients: make(map[uint64]*VoiceClient)}
 
 func ServeVoiceWS(c *gin.Context) {
+	// Extract the authenticated user ID from the middleware context
 	userIDObj, exists := c.Get("user_id")
 	if !exists {
 		log.Println("Unauthorized: User ID not found in context")
@@ -37,29 +39,35 @@ func ServeVoiceWS(c *gin.Context) {
 	}
 	userID := userIDObj.(uint64)
 
+	// Upgrade the HTTP connection to a WebSocket connection
 	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println("Failed to upgrade voice websocket:", err)
 		return
 	}
 
+	// Initialize the client wrapper
 	client := &VoiceClient{
 		Conn:   ws,
 		UserID: userID,
-		Send:   make(chan websockets.WsMessage, 256),
+		Send:   make(chan websockets.WsMessage, 256), // Buffered channel for outgoing messages
 	}
 
+	// Register the client in the global VoiceRegistry
 	VoiceRegistry.Lock()
 	VoiceRegistry.Clients[userID] = client
 	VoiceRegistry.Unlock()
 
+	// Start the read and write pumps in separate goroutines
 	go client.writePump()
 	go client.readPump()
 }
 
+// Continuously listens for incoming WebSocket messages from the client.
 func (c *VoiceClient) readPump() {
 	defer func() {
 		log.Printf("[Voice WS] User %d disconnected. Cleaning up.", c.UserID)
+		// Remove the client from the registry
 		VoiceRegistry.Lock()
 		delete(VoiceRegistry.Clients, c.UserID)
 		VoiceRegistry.Unlock()
@@ -101,16 +109,20 @@ func (c *VoiceClient) readPump() {
 	}()
 
 	log.Printf("[Voice WS] Started read pump for User %d", c.UserID)
+
+	// Infinite loop to read incoming WS messages
 	for {
 		var msg websockets.WsMessage
 		if err := c.Conn.ReadJSON(&msg); err != nil {
 			log.Printf("[Voice WS] Read error or disconnect for User %d: %v", c.UserID, err)
 			break
 		}
+		// Pass the message to the WebRTC router
 		RouteVoiceMessage(c, msg)
 	}
 }
 
+// Continuously listens on the client's Send channel and pushes messages to the WebSocket.
 func (c *VoiceClient) writePump() {
 	defer c.Conn.Close()
 	for msg := range c.Send {
