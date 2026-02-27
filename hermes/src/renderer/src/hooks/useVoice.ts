@@ -53,7 +53,7 @@ export const useVoice = (socket: WebSocket | null, userId: string) => {
   }, [])
 
   const joinVoiceChannel = useCallback(
-    async (channelId: number) => {
+    async (channelId: string) => {
       log(`Initiating Join for Channel ${channelId}`)
       currentChannelId.current = channelId
 

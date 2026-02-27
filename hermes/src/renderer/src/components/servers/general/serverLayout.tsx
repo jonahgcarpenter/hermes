@@ -16,7 +16,7 @@ interface ServerDetails {
 }
 
 interface VoiceUser {
-  id: number
+  id: string
   name: string
   avatar_url?: string
 }
@@ -28,7 +28,7 @@ export default function ServerLayout() {
   const [server, setServer] = useState<ServerDetails | null>(null)
   const [isLoadingServer, setIsLoadingServer] = useState(true)
   const [voiceSocket, setVoiceSocket] = useState<WebSocket | null>(null)
-  const [voiceStates, setVoiceStates] = useState<Record<number, VoiceUser[]>>({})
+  const [voiceStates, setVoiceStates] = useState<Record<string, VoiceUser[]>>({})
 
   const { channels, fetchChannels } = useChannels(serverId || '')
 
@@ -74,7 +74,7 @@ export default function ServerLayout() {
   const handleGlobalWsMessage = (msg: any) => {
     if (msg.event === 'VOICE_STATE_UPDATE') {
       const { channel_id, action, user, user_id } = msg.data
-      const chanId = Number(channel_id)
+      const chanId = String(channel_id)
 
       setVoiceStates((prev) => {
         const currentUsers = prev[chanId] || []
@@ -89,7 +89,7 @@ export default function ServerLayout() {
           // Filter the user out of the array
           return {
             ...prev,
-            [chanId]: currentUsers.filter((u) => u.id !== Number(user_id))
+            [chanId]: currentUsers.filter((u) => String(u.id) !== String(user_id))
           }
         }
 
