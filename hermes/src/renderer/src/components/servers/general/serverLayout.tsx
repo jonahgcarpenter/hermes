@@ -15,6 +15,12 @@ interface ServerDetails {
   owner_id: string
 }
 
+interface VoiceUser {
+  id: number
+  name: string
+  avatar_url?: string
+}
+
 export default function ServerLayout() {
   const { serverId } = useParams()
   const { user, isLoading: authLoading } = useAuth()
@@ -22,6 +28,7 @@ export default function ServerLayout() {
   const [server, setServer] = useState<ServerDetails | null>(null)
   const [isLoadingServer, setIsLoadingServer] = useState(true)
   const [voiceSocket, setVoiceSocket] = useState<WebSocket | null>(null)
+  const [voiceStates, setVoiceStates] = useState<Record<number, VoiceUser[]>>({})
 
   const { channels, fetchChannels } = useChannels(serverId || '')
 
@@ -48,6 +55,48 @@ export default function ServerLayout() {
       ws.close()
     }
   }, [user, handleSignal])
+
+  useEffect(() => {
+    if (!user) return
+
+    const globalWs = new WebSocket('ws://localhost:8080/api/ws')
+    globalWs.onopen = () => console.log('Connected to Global Hub')
+
+    globalWs.onmessage = (event) => {
+      const msg = JSON.parse(event.data)
+
+      handleGlobalWsMessage(msg)
+    }
+
+    return () => globalWs.close()
+  }, [user])
+
+  const handleGlobalWsMessage = (msg: any) => {
+    if (msg.event === 'VOICE_STATE_UPDATE') {
+      const { channel_id, action, user, user_id } = msg.data
+      const chanId = Number(channel_id)
+
+      setVoiceStates((prev) => {
+        const currentUsers = prev[chanId] || []
+
+        if (action === 'join') {
+          // Prevent duplicates if React runs twice
+          if (currentUsers.some((u) => u.id === user.id)) return prev
+          return { ...prev, [chanId]: [...currentUsers, user] }
+        }
+
+        if (action === 'leave') {
+          // Filter the user out of the array
+          return {
+            ...prev,
+            [chanId]: currentUsers.filter((u) => u.id !== Number(user_id))
+          }
+        }
+
+        return prev
+      })
+    }
+  }
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -102,7 +151,7 @@ export default function ServerLayout() {
         channels={channels}
         serverName={server.name}
         onJoinVoice={joinVoiceChannel}
-        voiceStates={{}}
+        voiceStates={voiceStates}
       />
 
       <main className="flex-1 flex flex-col bg-zinc-700 overflow-hidden relative">

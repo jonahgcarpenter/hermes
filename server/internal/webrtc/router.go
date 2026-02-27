@@ -2,9 +2,13 @@ package webrtc
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/pion/webrtc/v3"
+
+	"github.com/jonahgcarpenter/hermes/server/internal/database"
+	"github.com/jonahgcarpenter/hermes/server/internal/models"
 	"github.com/jonahgcarpenter/hermes/server/internal/websockets"
 )
 
@@ -27,6 +31,33 @@ func handleOffer(c *VoiceClient, msg websockets.WsMessage) {
 	if err := json.Unmarshal(dataBytes, &offer); err != nil {
 		log.Printf("[WebRTC Error] Invalid offer format: %v", err)
 		return
+	}
+
+	// Fetch User details for the UI
+	var user models.User
+	database.DB.Select("id", "display_name", "avatar_url").Where("id = ?", c.UserID).First(&user)
+
+	// Fetch Server ID to know who to broadcast to
+	var channel models.Channel
+	database.DB.Select("server_id").Where("id = ?", msg.TargetChannelID).First(&channel)
+
+	// Save this context to the client so we can use it when they disconnect
+	c.ActiveChannelID = msg.TargetChannelID
+	c.ActiveServerID = channel.ServerID
+
+	// Broadcast the JOIN event to the Global Hub
+	websockets.Manager.Broadcast <- websockets.WsMessage{
+		TargetServerID: channel.ServerID,
+		Event:          "VOICE_STATE_UPDATE",
+		Data: map[string]interface{}{
+			"channel_id": fmt.Sprintf("%d", msg.TargetChannelID), 
+			"action":     "join",
+			"user": map[string]interface{}{
+				"id":         fmt.Sprintf("%d", user.ID),
+				"name":       user.DisplayName,
+				"avatar_url": user.AvatarURL,
+			},
+		},
 	}
 
 	config := webrtc.Configuration{

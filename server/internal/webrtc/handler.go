@@ -1,6 +1,7 @@
 package webrtc
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -16,9 +17,11 @@ var upgrader = websocket.Upgrader{
 
 // VoiceClient represents a 1-to-1 WebRTC signaling connection
 type VoiceClient struct {
-	Conn   *websocket.Conn
-	UserID uint64
-	Send   chan websockets.WsMessage
+	Conn            *websocket.Conn
+	UserID          uint64
+	ActiveChannelID uint64
+	ActiveServerID  uint64
+	Send            chan websockets.WsMessage
 }
 
 // VoiceRegistry safely holds all active signaling connections
@@ -62,6 +65,19 @@ func (c *VoiceClient) readPump() {
 		delete(VoiceRegistry.Clients, c.UserID)
 		VoiceRegistry.Unlock()
 		c.Conn.Close()
+
+		// Broadcast user leave
+		if c.ActiveChannelID != 0 {
+			websockets.Manager.Broadcast <- websockets.WsMessage{
+				TargetServerID: c.ActiveServerID,
+				Event:          "VOICE_STATE_UPDATE",
+				Data: map[string]interface{}{
+					"channel_id": fmt.Sprintf("%d", c.ActiveChannelID),
+					"action":     "leave",
+					"user_id":    fmt.Sprintf("%d", c.UserID),
+				},
+			}
+		}
 
 		// Gather the rooms safely WITHOUT calling RemovePeer yet
 		var activeRooms []*Room

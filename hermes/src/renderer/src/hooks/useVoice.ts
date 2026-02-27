@@ -10,7 +10,7 @@ const log = (msg: string, data?: any) => {
   else console.log(`[WebRTC ${time}] ${msg}`)
 }
 
-export const useVoice = (socket: WebSocket | null, userId: number) => {
+export const useVoice = (socket: WebSocket | null, userId: string) => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
   const [remoteStreams, setRemoteStreams] = useState<MediaStream[]>([])
   const [connectionStatus, setConnectionStatus] = useState<RTCPeerConnectionState>('new')
@@ -21,7 +21,7 @@ export const useVoice = (socket: WebSocket | null, userId: number) => {
 
   const localStreamRef = useRef<MediaStream | null>(null)
 
-  const currentChannelId = useRef<number | null>(null)
+  const currentChannelId = useRef<string | null>(null)
 
   useEffect(() => {
     socketRef.current = socket
