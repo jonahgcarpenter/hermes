@@ -92,6 +92,12 @@ func main() {
 						messageRoute.PATCH("/:messageID", controllers.EditMessage)
 						messageRoute.DELETE("/:messageID", controllers.DeleteMessage)
 					}
+
+					// Voice
+					voiceRoute := channelRoute.Group("/:channelID/voice")
+					{
+						voiceRoute.GET("/members", controllers.VoiceMembers)
+					}
 				}
 			}
 		}
