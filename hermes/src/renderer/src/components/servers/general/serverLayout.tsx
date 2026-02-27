@@ -116,6 +116,51 @@ export default function ServerLayout() {
     fetchChannels()
   }, [serverId, fetchChannels])
 
+  useEffect(() => {
+    const fetchInitialVoiceStates = async () => {
+      // Wait until channels are loaded
+      if (!channels || channels.length === 0 || !serverId) return
+
+      const voiceChannels = channels.filter((c) => c.type?.toLowerCase() === 'voice')
+      if (voiceChannels.length === 0) return
+
+      try {
+        // Fetch all voice channel member lists concurrently
+        const promises = voiceChannels.map((vc) =>
+          api
+            .get(`/servers/${serverId}/channels/${vc.id}/voice/members`)
+            .then((res) => ({ channelId: vc.id, users: res.data || [] }))
+            .catch((err) => {
+              console.error(`Failed to fetch members for channel ${vc.id}`, err)
+              return { channelId: vc.id, users: [] } // Fail gracefully per channel
+            })
+        )
+
+        const results = await Promise.all(promises)
+
+        setVoiceStates((prev) => {
+          const next = { ...prev }
+
+          results.forEach(({ channelId, users }) => {
+            const currentUsers = next[channelId] || []
+
+            // Combine WS state with HTTP state and deduplicate by ID
+            const combined = [...currentUsers, ...users]
+            const uniqueUsers = Array.from(new Map(combined.map((u) => [String(u.id), u])).values())
+
+            next[channelId] = uniqueUsers
+          })
+
+          return next
+        })
+      } catch (error) {
+        console.error('Error fetching initial voice states:', error)
+      }
+    }
+
+    fetchInitialVoiceStates()
+  }, [channels, serverId])
+
   if (authLoading || !user) {
     return <div className="flex-1 flex items-center justify-center">Loading User...</div>
   }
