@@ -1,4 +1,4 @@
-package sfu
+package webrtc
 
 import (
 	"log"

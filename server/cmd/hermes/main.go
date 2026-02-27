@@ -10,6 +10,7 @@ import (
 	"github.com/jonahgcarpenter/hermes/server/internal/utils"
 	"github.com/jonahgcarpenter/hermes/server/internal/middleware"
 	"github.com/jonahgcarpenter/hermes/server/internal/websockets"
+	"github.com/jonahgcarpenter/hermes/server/internal/webrtc"
 )
 
 func main() {
