@@ -49,52 +49,61 @@ func (r *Room) AddPeer(userID uint64, pc *webrtc.PeerConnection) {
 	defer r.mu.Unlock()
 
 	r.Peers[userID] = pc
+	log.Printf("[SFU Manager] User %d added to Room %d. Total peers: %d", userID, r.ID, len(r.Peers))
 
-	// Give this new user all the EXISTING audio tracks in the room
+	// Give this new user all the EXISTING audio tracks
 	for _, track := range r.Tracks {
 		if _, err := pc.AddTrack(track); err != nil {
-			log.Println("Error adding existing track to new peer:", err)
+			log.Printf("[SFU Error] Error adding existing track to User %d: %v", userID, err)
+		} else {
+			log.Printf("[SFU Manager] Attached existing track to User %d", userID)
 		}
 	}
 
-	// When this new user starts speaking, forward their audio to everyone else
+	// Listen for incoming audio from this user
 	pc.OnTrack(func(remoteTrack *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
-		// Create a local copy of the incoming audio track
+		log.Printf("[SFU Manager] <<< Received incoming remote track from User %d (Kind: %s, ID: %s)", userID, remoteTrack.Kind().String(), remoteTrack.ID())
+
 		localTrack, err := webrtc.NewTrackLocalStaticRTP(
 			remoteTrack.Codec().RTPCodecCapability,
 			remoteTrack.ID(),
 			remoteTrack.StreamID(),
 		)
 		if err != nil {
-			log.Println("Error creating local track:", err)
+			log.Printf("[SFU Error] Failed to create local track for User %d: %v", userID, err)
 			return
 		}
 
-		// Save it to the room
 		r.mu.Lock()
 		r.Tracks = append(r.Tracks, localTrack)
 		r.mu.Unlock()
 
-		// Read RTP packets from the user and write them to the local track (Forwarding)
+		log.Printf("[SFU Manager] Successfully created local forwarding track for User %d", userID)
+
+		// Goroutine to forward RTP packets
 		go func() {
 			rtpBuf := make([]byte, 1400)
 			for {
 				i, _, readErr := remoteTrack.Read(rtpBuf)
 				if readErr != nil {
-					return // User disconnected or stopped talking
+					log.Printf("[SFU Manager] Stopped reading track from User %d: %v", userID, readErr)
+					return 
 				}
 				if _, writeErr := localTrack.Write(rtpBuf[:i]); writeErr != nil {
+					log.Printf("[SFU Error] Failed to write to local track: %v", writeErr)
 					return
 				}
 			}
 		}()
 
-		// Give this new audio track to all OTHER users in the room
+		// Give this new audio track to all OTHER users
 		r.mu.RLock()
 		for peerID, peerPC := range r.Peers {
 			if peerID != userID { 
 				if _, err := peerPC.AddTrack(localTrack); err != nil {
-					log.Println("Error adding track to peer:", err)
+					log.Printf("[SFU Error] Failed to forward track to Peer %d: %v", peerID, err)
+				} else {
+					log.Printf("[SFU Manager] Forwarding User %d's audio to Peer %d", userID, peerID)
 				}
 			}
 		}
@@ -105,17 +114,22 @@ func (r *Room) AddPeer(userID uint64, pc *webrtc.PeerConnection) {
 // RemovePeer cleans up when a user leaves
 func (r *Room) RemovePeer(userID uint64) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	if pc, exists := r.Peers[userID]; exists {
 		pc.Close()
 		delete(r.Peers, userID)
 	}
 	
+	// Check if the room is empty while we still have the room lock
+	isEmpty := len(r.Peers) == 0
+	
+	r.mu.Unlock() // Release the room lock BEFORE touching the Manager
+
 	// Clean up the room if it's empty
-	if len(r.Peers) == 0 {
+	if isEmpty {
 		Manager.mu.Lock()
 		delete(Manager.Rooms, r.ID)
 		Manager.mu.Unlock()
+		log.Printf("[SFU Manager] Room %d was empty and has been deleted", r.ID)
 	}
 }

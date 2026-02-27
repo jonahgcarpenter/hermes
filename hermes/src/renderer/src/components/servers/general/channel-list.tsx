@@ -78,7 +78,6 @@ export default function ChannelList({
               <div key={channel.id}>
                 <div
                   onClick={() => {
-                    console.log('Clicked voice channel:', channel.id)
                     onJoinVoice?.(channel.id)
                   }}
                   className="group flex items-center gap-2 px-2 py-1.5 rounded-md text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300 cursor-pointer transition-all"

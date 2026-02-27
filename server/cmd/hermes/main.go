@@ -41,6 +41,9 @@ func main() {
 		// Global WebSocket Endpoint
     api.GET("/ws", middleware.AuthRequired(), websockets.ServeGlobalWS)
 
+		// Voice WS Endpoints
+		api.GET("/ws/voice", middleware.AuthRequired(), webrtc.ServeVoiceWS)
+
 		// Authorization
 		authRoute := api.Group("/auth")
 		{
@@ -88,13 +91,6 @@ func main() {
 						messageRoute.POST("", controllers.SendMessage)
 						messageRoute.PATCH("/:messageID", controllers.EditMessage)
 						messageRoute.DELETE("/:messageID", controllers.DeleteMessage)
-					}
-
-					// Voice
-					voiceRoute := channelRoute.Group("/:channelID/voice")
-					{
-						voiceRoute.POST("/join", controllers.JoinVoice)
-						voiceRoute.POST("/leave", controllers.LeaveVoice)
 					}
 				}
 			}
