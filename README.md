@@ -1,5 +1,7 @@
 # Hermes
 
+## I do not plan on paying $100 for an iOS app. Because of this there is really no reason to work on this project simply because it will be missing a key feature. Nobody wants to use a browser on iOS
+
 Hermes is a self-hosted, privacy-first communication platform inspired by Discord's lack of privacy and data security. Built with performance and user data sovereignty in mind, it features real-time text messaging, voice communication, and server management.
 
 ## Architecture Overview
